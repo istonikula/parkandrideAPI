@@ -1,5 +1,7 @@
 language: java
 jdk:
-    - oraclejdk8
+  - oraclejdk8
 after_success:
   - cd application && mvn clean test jacoco:report coveralls:jacoco
+notifications:
+  flowdock: 51a37d750013ac656c5747072a3f5be1
