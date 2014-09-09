@@ -22,7 +22,7 @@
 		<guava.version>18.0</guava.version>
 		<json-path-assert.version>0.8.1</json-path-assert.version>
 
-		<maven-plugin.cobertura.version>2.6</maven-plugin.cobertura.version>
+		<maven-plugin.jacoco.version>0.7.1.201405082137</maven-plugin.jacoco.version>
 		<maven-plugin.coveralls.version>2.2.0</maven-plugin.coveralls.version>
 	</properties>
 
@@ -30,16 +30,17 @@
 		<pluginManagement>
 			<plugins>
 				<plugin>
-					<groupId>org.codehaus.mojo</groupId>
-					<artifactId>cobertura-maven-plugin</artifactId>
-					<version>${maven-plugin.cobertura.version}</version>
-					<configuration>
-						<aggregate>true</aggregate>
-						<formats>
-							<format>xml</format>
-							<format>html</format>
-						</formats>
-					</configuration>
+					<groupId>org.jacoco</groupId>
+					<artifactId>jacoco-maven-plugin</artifactId>
+					<version>${maven-plugin.jacoco.version}</version>
+					<executions>
+						<execution>
+							<id>prepare-agent</id>
+							<goals>
+								<goal>prepare-agent</goal>
+							</goals>
+						</execution>
+					</executions>
 				</plugin>
 				<plugin>
 					<groupId>org.eluder.coveralls</groupId>
@@ -49,6 +50,10 @@
 			</plugins>
 		</pluginManagement>
 		<plugins>
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+			</plugin>
 			<plugin>
 				<groupId>org.eluder.coveralls</groupId>
 				<artifactId>coveralls-maven-plugin</artifactId>
