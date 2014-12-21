@@ -18,6 +18,9 @@ public class Facility {
     @NotNull
     public Geometry location;
 
+//    @NotNull
+//    public Long operatorId;
+
     @ElementNotBlank
     @ElementLength(min=0, max=255)
     public Set<String> aliases = new HashSet<>();
@@ -30,7 +33,9 @@ public class Facility {
 
     public Set<Long> serviceIds = new HashSet<>();
 
-    public Map<ContactType, Long> contacts = new HashMap<>();
+    @NotNull
+    @Valid
+    public FacilityContacts contacts = new FacilityContacts();
 
 
     public Long getId() {
@@ -61,7 +66,12 @@ public class Facility {
         return serviceIds;
     }
 
-    public Map<ContactType, Long> getContacts() {
+    public FacilityContacts getContacts() {
         return contacts;
     }
+
+//    public Long getOperatorId() {
+//        return operatorId;
+//    }
+
 }

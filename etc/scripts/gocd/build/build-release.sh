@@ -1,21 +1,21 @@
 #!/bin/bash
 
 function init_db {
-  LIIPI_DB=liipici bash $ROOT_DIR/etc/scripts/db/psql-init-db.sh -h dev.cvokarbgtqbl.eu-west-1.rds.amazonaws.com -U devmaster postgres
+  bash $ROOT_DIR/etc/scripts/db/psql-init-db.sh -h dev.cvokarbgtqbl.eu-west-1.rds.amazonaws.com -U devmaster postgres
 }
 
 function init() {
   set -eu
   : ${GO_PIPELINE_COUNTER:?}
   : ${PWD:?}
+  : ${LIIPI_DB:="liipici"}
+  export LIIPI_DB PSQL_USERNAME=$LIIPI_DB SPRING_PROFILES_ACTIVE=env_gocd
 
   ROOT_DIR="$SCRIPT_DIR/../../../.."
 
   cd "$ROOT_DIR/etc/protractor" && npm install
   [ "$INIT_DB" = "yes" ] && init_db
   cd $ROOT_DIR
-
-  export SPRING_PROFILES_ACTIVE=env_gocd
 }
 
 function version() {

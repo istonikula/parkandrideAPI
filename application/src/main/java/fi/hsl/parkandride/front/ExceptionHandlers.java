@@ -3,6 +3,8 @@ package fi.hsl.parkandride.front;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
+import static org.springframework.http.HttpStatus.UNAUTHORIZED;
+import static org.springframework.http.HttpStatus.FORBIDDEN;
 
 import java.util.ArrayList;
 import java.util.Date;
@@ -13,6 +15,7 @@ import java.util.Map;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 
+import org.joda.time.DateTime;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -27,9 +30,13 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.google.common.collect.ImmutableList;
+import static com.google.common.net.HttpHeaders.*;
+import org.springframework.http.HttpHeaders;
 
 import fi.hsl.parkandride.core.domain.NotFoundException;
 import fi.hsl.parkandride.core.domain.Violation;
+import fi.hsl.parkandride.core.service.AccessDeniedException;
+import fi.hsl.parkandride.core.service.AuthenticationRequiredException;
 import fi.hsl.parkandride.core.service.ValidationException;
 
 @ControllerAdvice
@@ -37,19 +44,16 @@ public class ExceptionHandlers {
 
     @ExceptionHandler(NotFoundException.class)
     @ResponseStatus(value= NOT_FOUND)
-    @ResponseBody
-    public String notFound(HttpServletRequest req, NotFoundException ex) {
-        return ex.getMessage();
+    public void notFound(HttpServletRequest req, NotFoundException ex) {
+
     }
 
     @ExceptionHandler(ValidationException.class)
-    @ResponseBody
     public ResponseEntity<Map<String, Object>> validationException(HttpServletRequest request, ValidationException ex) {
         return handleError(request, BAD_REQUEST, ex, ex.getMessage(), ex.violations);
     }
 
     @ExceptionHandler(BindException.class)
-    @ResponseBody
     public ResponseEntity<Map<String, Object>> bindException(HttpServletRequest request, BindException ex) {
         List<Violation> violations = new ArrayList<>();
         for (FieldError fieldError : ex.getFieldErrors()) {
@@ -59,7 +63,6 @@ public class ExceptionHandlers {
     }
 
     @ExceptionHandler(HttpMessageNotReadableException.class)
-    @ResponseBody
     public ResponseEntity<Map<String, Object>> jsonException(HttpServletRequest request, HttpMessageNotReadableException ex) {
         if (ex.getCause() instanceof JsonMappingException) {
             JsonMappingException jsonEx = (JsonMappingException) ex.getCause();
@@ -68,6 +71,19 @@ public class ExceptionHandlers {
             return handleError(request, BAD_REQUEST, ex, "Invalid JSON", ImmutableList.of(violation));
         }
         return handleError(request, BAD_REQUEST, ex);
+    }
+
+    @ExceptionHandler(AuthenticationRequiredException.class)
+    @ResponseBody
+    public ResponseEntity<Void> authenticationRequiredException(AuthenticationRequiredException ex) {
+        HttpHeaders headers = new HttpHeaders();
+        return new ResponseEntity<Void>(null, headers, UNAUTHORIZED);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    @ResponseBody
+    public ResponseEntity<Void> accessDeniedException(AccessDeniedException ex) {
+        return new ResponseEntity<Void>((Void) null, FORBIDDEN);
     }
 
     private String getPath(JsonMappingException jsonEx) {
@@ -89,13 +105,11 @@ public class ExceptionHandlers {
     }
 
     @ExceptionHandler({ HttpRequestMethodNotSupportedException.class, HttpMediaTypeException.class })
-    @ResponseBody
     public ResponseEntity<Map<String, Object>> methodNotSupportedException(HttpServletRequest request, HttpRequestMethodNotSupportedException ex) {
         return handleError(request, BAD_REQUEST, ex);
     }
 
     @ExceptionHandler(Exception.class)
-    @ResponseBody
     public ResponseEntity<Map<String, Object>> exception(HttpServletRequest request, Exception ex) {
         return handleError(request, INTERNAL_SERVER_ERROR, ex);
     }
@@ -110,7 +124,7 @@ public class ExceptionHandlers {
         Map<String, Object> errorAttributes = new LinkedHashMap<>();
         errorAttributes.put("status", status.value());
         errorAttributes.put("message", message);
-        errorAttributes.put("timestamp", new Date());
+        errorAttributes.put("timestamp", DateTime.now());
         errorAttributes.put("exception", resolveError(ex).getClass().getName());
         if (violations != null && !violations.isEmpty()) {
             errorAttributes.put("violations", violations);
@@ -124,5 +138,4 @@ public class ExceptionHandlers {
         }
         return ex;
     }
-
 }

@@ -1,27 +1,34 @@
 package fi.hsl.parkandride;
 
 import static fi.hsl.parkandride.front.UrlSchema.GEOJSON;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
 
 import java.util.List;
 
-import org.apache.log4j.MDC;
 import org.geolatte.common.Feature;
 import org.geolatte.common.dataformats.json.jackson.JsonMapper;
 import org.geolatte.geom.Geometry;
+import org.springframework.beans.factory.BeanFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.actuate.system.ApplicationPidListener;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.web.HttpMessageConverters;
 import org.springframework.boot.autoconfigure.web.WebMvcAutoConfiguration;
+import org.springframework.boot.context.embedded.ConfigurableEmbeddedServletContainer;
+import org.springframework.boot.context.embedded.EmbeddedServletContainerCustomizer;
 import org.springframework.boot.context.embedded.FilterRegistrationBean;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Profile;
+import org.springframework.boot.context.embedded.MimeMappings;
+import org.springframework.boot.context.event.ApplicationEnvironmentPreparedEvent;
+import org.springframework.context.ApplicationEvent;
+import org.springframework.context.annotation.*;
+import org.springframework.context.event.SmartApplicationListener;
+import org.springframework.core.Ordered;
+import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.http.MediaType;
 import org.springframework.web.filter.CharacterEncodingFilter;
+import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.HandlerExceptionResolver;
 import org.springframework.web.servlet.config.annotation.ContentNegotiationConfigurer;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
@@ -29,32 +36,36 @@ import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry
 import org.springframework.web.servlet.config.annotation.ViewControllerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurerAdapter;
 import org.springframework.web.servlet.mvc.method.annotation.ExceptionHandlerExceptionResolver;
+import org.springframework.web.servlet.view.ContentNegotiatingViewResolver;
 
 import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.base.Preconditions;
 
+import fi.hsl.parkandride.config.SpringNameToSystemNameMapper;
 import fi.hsl.parkandride.core.domain.Phone;
 import fi.hsl.parkandride.front.Features;
 import fi.hsl.parkandride.front.GeojsonDeserializer;
 import fi.hsl.parkandride.front.GeojsonSerializer;
 import fi.hsl.parkandride.front.PhoneSerializer;
+import fi.hsl.parkandride.front.UserArgumentResolver;
 
-@Configuration
-@EnableAutoConfiguration
-@ComponentScan
+@SpringBootApplication
 @Import(Application.UiConfig.class)
 public class Application {
 
     public static void main(String[] args) {
         SpringApplication app = new SpringApplication(Application.class);
         app.addListeners(new ApplicationPidListener());
+        app.addListeners(new SpringNameToSystemNameMapper());
         app.run(args);
     }
 
     @Configuration
     @Import({ WebMvcAutoConfiguration.class, DevUIConfig.class })
-    public static class UiConfig extends WebMvcAutoConfiguration.WebMvcAutoConfigurationAdapter {
+    public static class UiConfig extends WebMvcAutoConfiguration.WebMvcAutoConfigurationAdapter implements EmbeddedServletContainerCustomizer {
 
         @Autowired
         private HttpMessageConverters messageConverters;
@@ -87,7 +98,8 @@ public class Application {
 
         @Override
         public void configureContentNegotiation(ContentNegotiationConfigurer configurer) {
-            configurer.defaultContentType(MediaType.APPLICATION_JSON);
+            configurer.defaultContentType(APPLICATION_JSON);
+            configurer.mediaType("json", APPLICATION_JSON);
             configurer.mediaType("geojson", MediaType.valueOf(GEOJSON));
         }
 
@@ -103,11 +115,29 @@ public class Application {
         public void configureHandlerExceptionResolvers(List<HandlerExceptionResolver> exceptionResolvers) {
             exceptionResolvers.add(exceptionHandlerExceptionResolver());
         }
+
+        @Override
+        public void addArgumentResolvers(List<HandlerMethodArgumentResolver> argumentResolvers) {
+            argumentResolvers.add(userArgumentResolver());
+        }
+
+        @Bean
+        public UserArgumentResolver userArgumentResolver() {
+            return new UserArgumentResolver();
+        }
+
+        @Override
+        public void customize(ConfigurableEmbeddedServletContainer container) {
+            MimeMappings mappings = new MimeMappings(MimeMappings.DEFAULT);
+            mappings.add("html", "text/html;charset=UTF-8");
+            mappings.add("json", "application/json;charset=UTF-8");
+            container.setMimeMappings(mappings);
+        }
     }
 
     @Configuration
     @EnableWebMvc
-    @Profile({"dev"})
+    @Profile({FeatureProfile.DEV})
     public static class DevUIConfig extends WebMvcConfigurerAdapter {
         @Override
         public void addResourceHandlers(ResourceHandlerRegistry registry) {

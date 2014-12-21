@@ -1,11 +1,7 @@
 package fi.hsl.parkandride.front;
 
 import static fi.hsl.parkandride.front.FeatureCollection.FACILITY_TO_FEATURE;
-import static fi.hsl.parkandride.front.UrlSchema.CAPACITY_TYPES;
-import static fi.hsl.parkandride.front.UrlSchema.FACILITIES;
-import static fi.hsl.parkandride.front.UrlSchema.FACILITY;
-import static fi.hsl.parkandride.front.UrlSchema.FACILITY_ID;
-import static fi.hsl.parkandride.front.UrlSchema.GEOJSON;
+import static fi.hsl.parkandride.front.UrlSchema.*;
 import static java.util.Arrays.asList;
 import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.OK;
@@ -18,29 +14,37 @@ import java.util.List;
 
 import javax.inject.Inject;
 
+import org.joda.time.Instant;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
+
+import com.google.common.collect.Lists;
 
 import fi.hsl.parkandride.core.domain.CapacityType;
 import fi.hsl.parkandride.core.domain.Facility;
+import fi.hsl.parkandride.core.domain.FacilityStatus;
 import fi.hsl.parkandride.core.domain.FacilitySummary;
 import fi.hsl.parkandride.core.domain.SearchResults;
+import fi.hsl.parkandride.core.domain.User;
+import fi.hsl.parkandride.core.service.AuthService;
 import fi.hsl.parkandride.core.service.FacilityService;
 
-@Controller
+@RestController
 public class FacilityController {
 
     @Inject
     FacilityService facilityService;
 
     @RequestMapping(method = POST, value = FACILITIES, produces = APPLICATION_JSON_VALUE)
-    public ResponseEntity<Facility> createFacility(@RequestBody Facility facility, UriComponentsBuilder builder) {
-        Facility newFacility = facilityService.createFacility(facility);
+    public ResponseEntity<Facility> createFacility(@RequestBody Facility facility,
+                                                   User currentUser,
+                                                   UriComponentsBuilder builder) {
+        Facility newFacility = facilityService.createFacility(facility, currentUser);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setLocation(builder.path(FACILITY).buildAndExpand(newFacility.id).toUri());
@@ -61,8 +65,9 @@ public class FacilityController {
 
     @RequestMapping(method = PUT, value = FACILITY, produces = APPLICATION_JSON_VALUE)
     public ResponseEntity<Facility> updateFacility(@PathVariable(FACILITY_ID) long facilityId,
-                                                   @RequestBody Facility facility) {
-        Facility response = facilityService.updateFacility(facilityId, facility);
+                                                   @RequestBody Facility facility,
+                                                   User currentUser) {
+        Facility response = facilityService.updateFacility(facilityId, facility, currentUser);
         return new ResponseEntity<>(facility, OK);
     }
 
@@ -90,4 +95,14 @@ public class FacilityController {
         return new ResponseEntity<>(SearchResults.of(types), OK);
     }
 
+    @RequestMapping(method = PUT, value = FACILITY_STATUS, produces = APPLICATION_JSON_VALUE)
+    public void createStatuses(@PathVariable(FACILITY_ID) long facilityId, @RequestBody List<FacilityStatus> statuses) {
+        facilityService.createStatuses(facilityId, statuses);
+    }
+
+    @RequestMapping(method = GET, value = FACILITY_STATUS, produces = APPLICATION_JSON_VALUE)
+    public ResponseEntity<Results<FacilityStatus>> getStatuses(@PathVariable(FACILITY_ID) long facilityId) {
+        List<FacilityStatus> statuses = facilityService.getStatuses(facilityId);
+        return new ResponseEntity<>(Results.of(statuses), OK);
+    }
 }

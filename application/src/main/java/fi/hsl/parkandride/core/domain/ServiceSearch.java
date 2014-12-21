@@ -12,8 +12,6 @@ public class ServiceSearch {
 
     public Set<Long> ids;
 
-    public MultilingualString name;
-
     public int getLimit() {
         return limit;
     }
@@ -46,11 +44,4 @@ public class ServiceSearch {
         this.sort = sort;
     }
 
-    public MultilingualString getName() {
-        return name;
-    }
-
-    public void setName(MultilingualString name) {
-        this.name = name;
-    }
 }

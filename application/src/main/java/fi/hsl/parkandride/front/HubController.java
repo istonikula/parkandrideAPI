@@ -16,25 +16,26 @@ import javax.inject.Inject;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import fi.hsl.parkandride.core.domain.Hub;
 import fi.hsl.parkandride.core.domain.SearchResults;
+import fi.hsl.parkandride.core.domain.User;
 import fi.hsl.parkandride.core.service.HubService;
 
-@Controller
+@RestController
 public class HubController {
 
     @Inject
     HubService hubService;
 
     @RequestMapping(method = POST, value = HUBS, produces = APPLICATION_JSON_VALUE)
-    public ResponseEntity<Hub> createHub(@RequestBody Hub hub, UriComponentsBuilder builder) {
-        Hub newHub = hubService.createHub(hub);
+    public ResponseEntity<Hub> createHub(@RequestBody Hub hub, User currentUser, UriComponentsBuilder builder) {
+        Hub newHub = hubService.createHub(hub, currentUser);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setLocation(builder.path(HUB).buildAndExpand(newHub.id).toUri());
@@ -55,8 +56,9 @@ public class HubController {
 
     @RequestMapping(method = PUT, value = HUB, produces = APPLICATION_JSON_VALUE)
     public ResponseEntity<Hub> updateHub(@PathVariable(HUB_ID) long hubId,
-                                         @RequestBody Hub hub) {
-        Hub response = hubService.updateHub(hubId, hub);
+                                         @RequestBody Hub hub,
+                                         User currentUser) {
+        Hub response = hubService.updateHub(hubId, hub, currentUser);
         return new ResponseEntity<>(hub, OK);
     }
 

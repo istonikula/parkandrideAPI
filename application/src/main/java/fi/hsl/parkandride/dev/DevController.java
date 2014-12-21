@@ -1,15 +1,15 @@
 package fi.hsl.parkandride.dev;
 
-import static fi.hsl.parkandride.back.ContactDao.CONTACT_ID_SEQ;
-import static fi.hsl.parkandride.back.FacilityDao.FACILITY_ID_SEQ;
-import static fi.hsl.parkandride.back.HubDao.HUB_ID_SEQ;
 import static fi.hsl.parkandride.front.UrlSchema.DEV_CONTACTS;
 import static fi.hsl.parkandride.front.UrlSchema.DEV_FACILITIES;
 import static fi.hsl.parkandride.front.UrlSchema.DEV_HUBS;
+import static fi.hsl.parkandride.front.UrlSchema.DEV_LOGIN;
+import static fi.hsl.parkandride.front.UrlSchema.DEV_OPERATORS;
 import static java.lang.String.format;
 import static org.springframework.http.HttpStatus.OK;
 import static org.springframework.web.bind.annotation.RequestMethod.DELETE;
 import static org.springframework.web.bind.annotation.RequestMethod.PUT;
+import static org.springframework.web.bind.annotation.RequestMethod.POST;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,42 +18,28 @@ import javax.annotation.Resource;
 
 import org.springframework.context.annotation.Profile;
 import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import com.mysema.query.sql.RelationalPath;
-import com.mysema.query.sql.postgres.PostgresQueryFactory;
+import com.sun.org.apache.xalan.internal.xsltc.runtime.Operators;
 
+import fi.hsl.parkandride.FeatureProfile;
 import fi.hsl.parkandride.back.ContactDao;
 import fi.hsl.parkandride.back.FacilityDao;
 import fi.hsl.parkandride.back.HubDao;
-import fi.hsl.parkandride.back.sql.*;
+import fi.hsl.parkandride.back.OperatorDao;
 import fi.hsl.parkandride.core.back.ContactRepository;
 import fi.hsl.parkandride.core.back.FacilityRepository;
 import fi.hsl.parkandride.core.back.HubRepository;
-import fi.hsl.parkandride.core.domain.Contact;
-import fi.hsl.parkandride.core.domain.Facility;
-import fi.hsl.parkandride.core.domain.Hub;
-import fi.hsl.parkandride.core.service.ContactService;
-import fi.hsl.parkandride.core.service.FacilityService;
-import fi.hsl.parkandride.core.service.HubService;
-import fi.hsl.parkandride.core.service.TransactionalWrite;
+import fi.hsl.parkandride.core.back.OperatorRepository;
+import fi.hsl.parkandride.core.back.UserRepository;
+import fi.hsl.parkandride.core.domain.*;
+import fi.hsl.parkandride.core.service.*;
 
-@Controller
-@Profile({"dev_api"})
+@RestController
+@Profile({ FeatureProfile.DEV_API})
 public class DevController {
-
-    private static QFacility qFacility = QFacility.facility;
-
-    private static QHub qHub = QHub.hub;
-
-    private static QContact qContact = QContact.contact;
-
-    @Resource PostgresQueryFactory queryFactory;
-
-    @Resource FacilityService facilityService;
 
     @Resource ContactService contactService;
 
@@ -63,33 +49,62 @@ public class DevController {
 
     @Resource ContactRepository contactRepository;
 
-    @Resource HubService hubService;
+    @Resource OperatorRepository operatorRepository;
 
-    @Resource JdbcTemplate jdbcTemplate;
+    @Resource DevHelper devHelper;
+
+    @Resource UserService userService;
+
+    @Resource AuthenticationService authenticationService;
+
+    @Resource UserRepository userRepository;
+
+    @RequestMapping(method = POST, value = DEV_LOGIN)
+    public ResponseEntity<Login> login(@RequestBody NewUser newUser) {
+        UserSecret userSecret;
+        try {
+            userSecret = userRepository.getUser(newUser.username);
+            if (newUser.role != userSecret.user.role) {
+                userRepository.updateUser(userSecret.user.id, newUser);
+            }
+            userRepository.updatePassword(userSecret.user.id, authenticationService.encryptPassword(newUser.password));
+        } catch (NotFoundException e) {
+            userSecret = new UserSecret();
+            userSecret.user = userService.createUserNoValidate(newUser);
+        }
+        Login login = new Login();
+        login.token = authenticationService.token(userSecret.user);
+        login.username = userSecret.user.username;
+        login.role = userSecret.user.role;
+        return new ResponseEntity<>(login, OK);
+    }
 
     @RequestMapping(method = DELETE, value = DEV_FACILITIES)
     @TransactionalWrite
     public ResponseEntity<Void> deleteFacilities() {
-        clear(QFacilityContact.facilityContact, QFacilityService.facilityService, QPort.port, QFacilityAlias.facilityAlias, QCapacity.capacity,
-                QFacility.facility);
-        resetSequence(FACILITY_ID_SEQ);
-        return new ResponseEntity<Void>(OK);
+        devHelper.deleteFacilities();
+        return new ResponseEntity<>(OK);
     }
 
     @RequestMapping(method = DELETE, value = DEV_HUBS)
     @TransactionalWrite
     public ResponseEntity<Void> deleteHubs() {
-        clear(QHubFacility.hubFacility, QHub.hub);
-        resetSequence(HUB_ID_SEQ);
-        return new ResponseEntity<Void>(OK);
+        devHelper.deleteHubs();
+        return new ResponseEntity<>(OK);
     }
 
     @RequestMapping(method = DELETE, value = DEV_CONTACTS)
     @TransactionalWrite
     public ResponseEntity<Void> deleteContacts() {
-        clear(QFacilityContact.facilityContact, QContact.contact);
-        resetSequence(CONTACT_ID_SEQ);
-        return new ResponseEntity<Void>(OK);
+        devHelper.deleteContacts();
+        return new ResponseEntity<>(OK);
+    }
+
+    @RequestMapping(method = DELETE, value = DEV_OPERATORS)
+    @TransactionalWrite
+    public ResponseEntity<Void> deleteOperators() {
+        devHelper.deleteOperators();
+        return new ResponseEntity<>(OK);
     }
 
     @RequestMapping(method = PUT, value = DEV_FACILITIES)
@@ -100,13 +115,13 @@ public class DevController {
         for (Facility facility : facilities) {
             if (facility.id != null) {
                 facilityDao.insertFacility(facility, facility.id);
-                results.add(facility);
             } else {
-                results.add(facilityService.createFacility(facility));
+                facility.id = facilityDao.insertFacility(facility);
             }
+            results.add(facility);
         }
-        resetSequence(FACILITY_ID_SEQ, queryFactory.from(qFacility).singleResult(qFacility.id.max()));
-        return new ResponseEntity<List<Facility>>(results, OK);
+        devHelper.resetFacilitySequence();
+        return new ResponseEntity<>(results, OK);
     }
 
     @RequestMapping(method = PUT, value = DEV_HUBS)
@@ -117,13 +132,13 @@ public class DevController {
         for (Hub hub : hubs) {
             if (hub.id != null) {
                 hubDao.insertHub(hub, hub.id);
-                results.add(hub);
             } else {
-                results.add(hubService.createHub(hub));
+                hub.id = hubDao.insertHub(hub);
             }
+            results.add(hub);
         }
-        resetSequence(HUB_ID_SEQ, queryFactory.from(qHub).singleResult(qHub.id.max()));
-        return new ResponseEntity<List<Hub>>(results, OK);
+        devHelper.resetHubSequence();
+        return new ResponseEntity<>(results, OK);
     }
 
     @RequestMapping(method = PUT, value = DEV_CONTACTS)
@@ -134,30 +149,29 @@ public class DevController {
         for (Contact contact : contacts) {
             if (contact.id != null) {
                 contactDao.insertContact(contact, contact.id);
-                results.add(contact);
             } else {
-                results.add(contactService.createContact(contact));
+                contact.id = contactDao.insertContact(contact);
             }
+            results.add(contact);
         }
-        resetSequence(CONTACT_ID_SEQ, queryFactory.from(qContact).singleResult(qContact.id.max()));
-        return new ResponseEntity<List<Contact>>(results, OK);
+        devHelper.resetContactSequence();
+        return new ResponseEntity<>(results, OK);
     }
 
-    private void clear(RelationalPath... tables) {
-        for (RelationalPath table : tables) {
-            queryFactory.delete(table).execute();
+    @RequestMapping(method = PUT, value = DEV_OPERATORS)
+    @TransactionalWrite
+    public ResponseEntity<List<Operator>> pushOperators(@RequestBody List<Operator> operators) {
+        OperatorDao operatorDao = (OperatorDao) operatorRepository;
+        List<Operator> results = new ArrayList<>();
+        for (Operator operator : operators) {
+            if (operator.id != null) {
+                operatorDao.insertOperator(operator, operator.id);
+            } else {
+                operator.id = operatorDao.insertOperator(operator);
+            }
+            results.add(operator);
         }
+        devHelper.resetOperatorSequence();
+        return new ResponseEntity<>(results, OK);
     }
-
-    private void resetSequence(String sequence) {
-        resetSequence(sequence, 0l);
-    }
-    private void resetSequence(String sequence, Long currentMax) {
-        if (currentMax == null) {
-            currentMax = 0l;
-        }
-        jdbcTemplate.execute(format("drop sequence %s", sequence));
-        jdbcTemplate.execute(format("create sequence %s increment by 1 start with %s", sequence, currentMax+1));
-    }
-
 }

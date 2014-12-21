@@ -10,13 +10,14 @@
     ]);
 
 
-    m.controller("ContactEditCtrl", function ($scope, $modalInstance, ContactResource, contact, create) {
+    m.controller("ContactEditCtrl", function ($scope, $modalInstance, ContactResource, contact, create, EVENTS) {
         $scope.contact = contact;
         $scope.titleKey = 'contacts.action.' + (create ? 'new' : 'edit');
-        $scope.ok = function () {
+
+        function saveContact() {
             ContactResource.save(contact).then(
-                function(id) {
-                    $scope.contact.id = id;
+                function(contact) {
+                    $scope.contact = contact;
                     $modalInstance.close($scope.contact);
                 },
                 function(rejection) {
@@ -25,6 +26,18 @@
                     }
                 }
             );
+        }
+
+        $scope.ok = function (form) {
+            $scope.$broadcast(EVENTS.showErrorsCheckValidity);
+            if (form.$valid) {
+                saveContact();
+            } else {
+                $scope.violations = [{
+                    path: "",
+                    type: "BasicRequirements"
+                }];
+            }
         };
         $scope.cancel = function () {
             $modalInstance.dismiss('cancel');

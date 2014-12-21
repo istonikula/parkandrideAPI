@@ -14,26 +14,29 @@ import javax.inject.Inject;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import fi.hsl.parkandride.core.domain.Contact;
 import fi.hsl.parkandride.core.domain.ContactSearch;
 import fi.hsl.parkandride.core.domain.SearchResults;
+import fi.hsl.parkandride.core.domain.User;
 import fi.hsl.parkandride.core.service.ContactService;
 
-@Controller
+@RestController
 public class ContactController {
 
     @Inject
     ContactService contactService;
 
     @RequestMapping(method = POST, value = CONTACTS, produces = APPLICATION_JSON_VALUE)
-    public ResponseEntity<Contact> createContact(@RequestBody Contact contact, UriComponentsBuilder builder) {
-        Contact newContact = contactService.createContact(contact);
+    public ResponseEntity<Contact> createContact(@RequestBody Contact contact,
+                                                 User currentUser,
+                                                 UriComponentsBuilder builder) {
+        Contact newContact = contactService.createContact(contact, currentUser);
 
         HttpHeaders headers = new HttpHeaders();
         headers.setLocation(builder.path(CONTACT).buildAndExpand(newContact.id).toUri());
@@ -48,8 +51,9 @@ public class ContactController {
 
     @RequestMapping(method = PUT, value = CONTACT, produces = APPLICATION_JSON_VALUE)
     public ResponseEntity<Contact> updateContact(@PathVariable(CONTACT_ID) long contactId,
-                                                   @RequestBody Contact contact) {
-        Contact response = contactService.updateContact(contactId, contact);
+                                                   @RequestBody Contact contact,
+                                                   User currentUser) {
+        Contact response = contactService.updateContact(contactId, contact, currentUser);
         return new ResponseEntity<>(contact, OK);
     }
 

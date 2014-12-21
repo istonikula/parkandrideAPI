@@ -8,6 +8,8 @@
     };
 
     m.directive('tags', function () {
+        var focusClass = "has-focus";
+
         return {
             restrict: 'E',
             require: 'ngModel',
@@ -38,7 +40,7 @@
                     .on('keydown', function(e) {
                         var key = e.keyCode;
 
-                        var add = key === KEYS.enter || key === KEYS.tab;
+                        var add = key === KEYS.enter;
                         var remove = key === KEYS.backspace && scope.newTag.length === 0;
                         var cancel = key === KEYS.escape;
 
@@ -57,7 +59,11 @@
                         }
                     })
                     .on('blur', function(e) {
-                        addNewTag();
+                        element.toggleClass(focusClass, false);
+                        addNewTag(e);
+                    })
+                    .on('focus', function(e) {
+                        element.toggleClass(focusClass, true);
                     });
 
                 scope.removeTag = function(tag) {

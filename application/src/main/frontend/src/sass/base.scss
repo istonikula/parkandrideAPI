@@ -12,7 +12,14 @@
 
 //buttons
 .btn-xs {
+   @include button($radius:15px, $font-size:16px, $height:30px);
+   padding: 1px 10px;
+}
+
+.btn-xs-secondary {
   @include button($radius:15px, $font-size:16px, $height:30px);
+  background-color: $secondarycolor;
+  color: $primarycolor;
   padding: 1px 10px;
 }
 
@@ -42,13 +49,89 @@
   color: #fff;
 }
 
+.btn:focus, .btn:active:focus, .btn.active:focus {
+  outline: none;
+  color: #fff;
+}
+
 .btn.active {
   background-color: $secondarycolor;
   color: $primarycolor;
+  -webkit-box-shadow: none;
+  box-shadow: none;
 }
 
 .btn-group {
   margin-bottom: 20px;
+}
+
+//facility contact buttons
+div.ui-select-bootstrap > .btn:hover {
+  background-color: #fff;
+  color: $k80;
+  border-color: $lightgray;
+}
+
+div.ui-select-bootstrap > .btn-default:active {
+  background-color: #fff;
+  color: $k80;
+  -webkit-box-shadow: none;
+  box-shadow: none;
+  border-color: $lightgray;
+}
+
+div.ui-select-bootstrap > .btn-default:focus {
+  background-color: #fff;
+  color: $k80;
+}
+
+.btn-default-focus {
+  outline: none;
+}
+
+span.input-group-btn > .btn-default {
+  background-color: $primarycolor;
+  color: #fff;
+}
+
+span.input-group-btn > .btn:hover {
+  background-color: $primarycolor-light;
+  color: #fff;
+}
+
+span.input-group-btn > .btn:active {
+  -webkit-box-shadow: none;
+  box-shadow: none;
+}
+
+//span buttons for service and alias selections
+span > .btn-xs, .btn-group-xs > .btn {
+  background-color: $secondarycolor;
+  color: $primarycolor;
+}
+
+span > .btn:hover {
+  background-color: $secondarycolor;
+  color: $primarycolor;
+}
+
+span > .btn-default:focus {
+  background-color: $secondarycolor;
+  color: $primarycolor;
+}
+
+span > .btn-default:active {
+  background-color: $secondarycolor;
+  color: $primarycolor;
+}
+
+span > .btn:active {
+   -webkit-box-shadow: none;
+   box-shadow: none;
+}
+
+span > .btn:active:focus {
+  color: $primarycolor;
 }
 
 //form controls
@@ -78,4 +161,16 @@ input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
+}
+
+a {
+  cursor: pointer;
+}
+
+// disable bootstrap modal vertical animation
+.modal {
+  &.fade .modal-dialog {
+    @include translate(0, 0);
+  }
+  &.in .modal-dialog { @include translate(0, 0) }
 }

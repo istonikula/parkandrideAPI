@@ -9,16 +9,26 @@ import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.IntegrationTest;
 import org.springframework.boot.test.SpringApplicationConfiguration;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.test.context.web.WebAppConfiguration;
 
+import fi.hsl.parkandride.ActiveProfileAppender;
 import fi.hsl.parkandride.Application;
+import fi.hsl.parkandride.FeatureProfile;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringApplicationConfiguration(classes = Application.class)
+@ActiveProfiles(resolver = ProtractorTest.ProfileResolver.class)
 @WebAppConfiguration
 @IntegrationTest("server.port:0")
 public class ProtractorTest {
+
+    public static class ProfileResolver extends ActiveProfileAppender {
+        public ProfileResolver() {
+            super(FeatureProfile.PTOR, FeatureProfile.DEV_API);
+        }
+    }
 
     @Value("${local.server.port}")
     private int port;

@@ -14,6 +14,7 @@ describe('edit hub view', function () {
 
     var facFull = fixtures.facilitiesFixture.dummies.facFull;
     var facCar = fixtures.facilitiesFixture.dummies.facCar;
+    var contact = fixtures.facilitiesFixture.contact;
 
     var facilityFactory = fixtures.facilityFactory;
 
@@ -21,6 +22,10 @@ describe('edit hub view', function () {
         expect(facilitiesTable.isDisplayed()).toBe(true);
         arrayAssert.assertInAnyOrder(facilitiesTable.getNames(), expected);
     }
+
+    it('should login as admin', function() {
+        devApi.loginAs('ADMIN');
+    });
 
     describe('new hub', function () {
         beforeEach(function () {
@@ -44,6 +49,7 @@ describe('edit hub view', function () {
 
         it('required errors are shown for all required fields if user submits empty form without editing', function() {
             hubEditPage.save();
+            expect(hubEditPage.getViolations()).toEqual([{ path: "Alue", message: "tarkista pakolliset tiedot ja syötteiden muoto" }]);
             expect(hubEditPage.isNameFiRequiredError()).toBe(true);
             expect(hubEditPage.isNameSvRequiredError()).toBe(true);
             expect(hubEditPage.isNameEnRequiredError()).toBe(true);
@@ -111,7 +117,7 @@ describe('edit hub view', function () {
 
         describe('with facilities', function() {
             beforeEach(function () {
-                devApi.resetFacilities([facFull, facCar]);
+                devApi.resetAll({facilities: [facFull, facCar], contacts: [contact]});
                 hubEditPage.get();
             });
 
@@ -152,7 +158,7 @@ describe('edit hub view', function () {
 
                 hub.location.coordinates = facilities[0].coordinatesFromTopLeft({ x: 30, y: 30 });
                 hub.setFacilities(facilities);
-                devApi.resetAll(hub.facilities, [hub]);
+                devApi.resetAll({facilities: hub.facilities, hubs: [hub], contacts: [contact]});
             });
 
             it('facility can be removed from hub', function () {

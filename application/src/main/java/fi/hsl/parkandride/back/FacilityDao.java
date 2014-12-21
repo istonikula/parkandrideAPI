@@ -12,8 +12,11 @@ import static fi.hsl.parkandride.core.domain.Sort.Dir.DESC;
 import java.util.*;
 
 import org.geolatte.geom.Geometry;
+import org.joda.time.DateTime;
+import org.joda.time.Instant;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.mysema.query.ResultTransformer;
 import com.mysema.query.Tuple;
@@ -24,6 +27,7 @@ import com.mysema.query.sql.dml.SQLUpdateClause;
 import com.mysema.query.sql.postgres.PostgresQuery;
 import com.mysema.query.sql.postgres.PostgresQueryFactory;
 import com.mysema.query.types.MappingProjection;
+import com.mysema.query.types.Projections;
 import com.mysema.query.types.expr.ComparableExpression;
 import com.mysema.query.types.expr.NumberExpression;
 import com.mysema.query.types.expr.SimpleExpression;
@@ -49,7 +53,7 @@ public class FacilityDao implements FacilityRepository {
 
     private static final QFacilityService qService = QFacilityService.facilityService;
 
-    private static final QFacilityContact qContact= QFacilityContact.facilityContact;
+    private static final QFacilityStatus qStatus = QFacilityStatus.facilityStatus;
 
     private static final MappingProjection<Capacity> capacityMapping = new MappingProjection<Capacity>(Capacity.class, qCapacity.built, qCapacity.unavailable) {
         @Override
@@ -78,7 +82,8 @@ public class FacilityDao implements FacilityRepository {
             Geometry location = row.get(qPort.location);
             boolean exit = row.get(qPort.exit);
             boolean pedestrian = row.get(qPort.pedestrian);
-            Port port = new Port(location, entry, exit, pedestrian);
+            boolean bicycle = row.get(qPort.bicycle);
+            Port port = new Port(location, entry, exit, pedestrian, bicycle);
             port.address = addressMapping.map(row);
             port.info = portInfoMapping.map(row);
             return port;
@@ -122,6 +127,11 @@ public class FacilityDao implements FacilityRepository {
             facility.id = id;
             facility.location = row.get(qFacility.location);
             facility.name = nameMapping.map(row);
+            facility.contacts = new FacilityContacts(
+                    row.get(qFacility.emergencyContactId),
+                    row.get(qFacility.operatorContactId),
+                    row.get(qFacility.serviceContactId)
+            );
             return facility;
         }
     };
@@ -153,7 +163,6 @@ public class FacilityDao implements FacilityRepository {
         insertCapacities(facilityId, facility.capacities);
         insertPorts(facilityId, facility.ports);
         updateServices(facilityId, facility.serviceIds);
-        updateContacts(facilityId, facility.contacts);
 
         return facilityId;
     }
@@ -180,9 +189,6 @@ public class FacilityDao implements FacilityRepository {
 
         if (!Objects.equals(newFacility.serviceIds, oldFacility.serviceIds)) {
             updateServices(facilityId, newFacility.serviceIds);
-        }
-        if (!Objects.equals(newFacility.contacts, oldFacility.contacts)) {
-            updateContacts(facilityId, newFacility.contacts);
         }
     }
 
@@ -212,7 +218,6 @@ public class FacilityDao implements FacilityRepository {
         fetchCapacities(facilityMap);
         fetchPorts(facilityMap);
         fetchServices(facilityMap);
-        fetchContacts(facilityMap);
         return facility;
     }
 
@@ -231,7 +236,6 @@ public class FacilityDao implements FacilityRepository {
         fetchCapacities(facilities);
         fetchPorts(facilities);
         fetchServices(facilities);
-        fetchContacts(facilities);
 
         return SearchResults.of(new ArrayList<>(facilities.values()), search.limit);
     }
@@ -251,6 +255,39 @@ public class FacilityDao implements FacilityRepository {
         Map<CapacityType, Capacity> capacities = qry.map(qCapacity.capacityType, capacitySummaryMapping);
 
         return new FacilitySummary(count, capacities);
+    }
+
+    @TransactionalWrite
+    @Override
+    public void insertStatuses(long facilityId, List<FacilityStatus> statuses) {
+        SQLInsertClause insertBatch = queryFactory.insert(qStatus);
+        statuses.forEach((status) -> {
+            insertBatch.set(qStatus.facilityId, facilityId);
+            insertBatch.set(qStatus.capacityType, status.capacityType);
+            insertBatch.set(qStatus.status, status.status);
+            insertBatch.set(qStatus.spacesAvailable, status.spacesAvailable);
+            insertBatch.set(qStatus.ts, status.timestamp);
+            insertBatch.addBatch();
+        });
+        insertBatch.execute();
+    }
+
+    @TransactionalRead
+    @Override
+    public List<FacilityStatus> getStatuses(long facilityId) {
+        return queryFactory.from(qStatus)
+                .where(qStatus.facilityId.eq(facilityId))
+                .list(new MappingProjection<FacilityStatus>(FacilityStatus.class, qStatus.all()) {
+                    @Override
+                    protected FacilityStatus map(Tuple row) {
+                        FacilityStatus status = new FacilityStatus();
+                        status.capacityType = row.get(qStatus.capacityType);
+                        status.timestamp = row.get(qStatus.ts);
+                        status.spacesAvailable = row.get(qStatus.spacesAvailable);
+                        status.status = row.get(qStatus.status);
+                        return status;
+                    }
+                });
     }
 
     private void updateCapacities(long facilityId, Map<CapacityType, Capacity> newCapacities, Map<CapacityType, Capacity> oldCapacities) {
@@ -384,6 +421,7 @@ public class FacilityDao implements FacilityRepository {
                 .set(qPort.location, port.location)
                 .set(qPort.entry, port.entry)
                 .set(qPort.exit, port.exit)
+                .set(qPort.bicycle, port.bicycle)
                 .set(qPort.pedestrian, port.pedestrian);
         addressMapping.populate(port.address, store);
         portInfoMapping.populate(port.info, store);
@@ -462,21 +500,6 @@ public class FacilityDao implements FacilityRepository {
         }
     }
 
-    private void updateContacts(long facilityId, Map<ContactType, Long> contacts) {
-        queryFactory.delete(qContact).where(qContact.facilityId.eq(facilityId)).execute();
-
-        if (contacts != null && !contacts.isEmpty()) {
-            SQLInsertClause insert = queryFactory.insert(qContact);
-            for (Map.Entry<ContactType, Long> entry : contacts.entrySet()) {
-                insert.set(qContact.facilityId, facilityId)
-                        .set(qContact.contactType, entry.getKey())
-                        .set(qContact.contactId, entry.getValue())
-                        .addBatch();
-            }
-            insert.execute();
-        }
-    }
-
     private void fetchPorts(Map<Long, Facility> facilitiesById) {
         if (!facilitiesById.isEmpty()) {
             Map<Long, List<Port>> ports = findPorts(facilitiesById.keySet());
@@ -517,22 +540,6 @@ public class FacilityDao implements FacilityRepository {
         }
     }
 
-    private void fetchContacts(Map<Long, Facility> facilitiesById) {
-        if (!facilitiesById.isEmpty()) {
-            Map<Long, Map<ContactType, Long>> capacities = findContacts(facilitiesById.keySet());
-
-            for (Map.Entry<Long, Map<ContactType, Long>> entry : capacities.entrySet()) {
-                facilitiesById.get(entry.getKey()).contacts = entry.getValue();
-            }
-        }
-    }
-
-    private Map<Long, Map<ContactType, Long>> findContacts(Set<Long> facilityIds) {
-        return queryFactory.from(qContact)
-                .where(qContact.facilityId.in(facilityIds))
-                .transform(groupBy(qContact.facilityId).as(map(qContact.contactType, qContact.contactId)));
-    }
-
     private Map<Long, Set<Long>> findServices(Set<Long> facilityIds) {
         return queryFactory.from(qService)
                 .where(qService.facilityId.in(facilityIds))
@@ -562,6 +569,11 @@ public class FacilityDao implements FacilityRepository {
         store.set(qFacility.nameSv, facility.name.sv);
         store.set(qFacility.nameEn, facility.name.en);
         store.set(qFacility.location, facility.location);
+
+        FacilityContacts contacts = facility.contacts;
+        store.set(qFacility.emergencyContactId, contacts.emergency);
+        store.set(qFacility.operatorContactId, contacts.operator);
+        store.set(qFacility.serviceContactId, contacts.service);
     }
 
     private SQLInsertClause insertFacility() {
