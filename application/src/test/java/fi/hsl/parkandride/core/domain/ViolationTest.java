@@ -9,18 +9,12 @@ import javax.validation.Validation;
 import javax.validation.Validator;
 
 import org.geolatte.geom.Geometry;
+import org.geolatte.geom.Polygon;
 import org.junit.Test;
 import org.mockito.Mockito;
 
 public class ViolationTest {
     private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
-
-    @Test
-    public void capacityViolation_is_translated() {
-        for (CapacityType ct : CapacityType.values()) {
-            assertThat(path(capacityViolation(ct))).isEqualTo("capacities." + ct.name() + ".built");
-        }
-    }
 
     @Test
     public void nonCapacityViolation_is_not_translated() {
@@ -31,14 +25,9 @@ public class ViolationTest {
         return new Violation(cv).path;
     }
 
-    private ConstraintViolation<Facility> capacityViolation(CapacityType t) {
-        Facility f = validFacility();
-        f.capacities.put(t, new Capacity(-1));
-        return toFacilityConstraintViolation(f);
-    }
-
     private ConstraintViolation<Facility> nameViolation() {
         Facility f = validFacility();
+        f.operatorId  = 1l;
         f.contacts.emergency = 1l;
         f.contacts.operator = 1l;
         f.name = new MultilingualString("", "Test", "Test");
@@ -53,10 +42,11 @@ public class ViolationTest {
 
     private Facility validFacility() {
         Facility f = new Facility();
+        f.operatorId  = 1l;
         f.contacts.emergency = 1l;
         f.contacts.operator = 1l;
         f.name = new MultilingualString("Test", "Test", "Test");
-        f.location = Mockito.mock(Geometry.class);
+        f.location = Mockito.mock(Polygon.class);
 
         Set<ConstraintViolation<Facility>> violations = validator.validate(f);
         assertThat(violations).isEmpty();

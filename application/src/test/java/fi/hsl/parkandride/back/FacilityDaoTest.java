@@ -1,16 +1,25 @@
 package fi.hsl.parkandride.back;
 
-import static fi.hsl.parkandride.core.domain.CapacityType.BICYCLE;
 import static fi.hsl.parkandride.core.domain.CapacityType.CAR;
-import static fi.hsl.parkandride.core.domain.CapacityType.PARK_AND_RIDE;
+import static fi.hsl.parkandride.core.domain.CapacityType.ELECTRIC_CAR;
+import static fi.hsl.parkandride.core.domain.DayType.BUSINESS_DAY;
+import static fi.hsl.parkandride.core.domain.DayType.EVE;
+import static fi.hsl.parkandride.core.domain.DayType.SUNDAY;
+import static fi.hsl.parkandride.core.domain.FacilityStatus.EXCEPTIONAL_SITUATION;
+import static fi.hsl.parkandride.core.domain.FacilityStatus.IN_OPERATION;
+import static fi.hsl.parkandride.core.domain.Service.ACCESSIBLE_TOILETS;
+import static fi.hsl.parkandride.core.domain.Service.ELEVATOR;
+import static fi.hsl.parkandride.core.domain.Service.LIGHTING;
+import static fi.hsl.parkandride.core.domain.Service.TOILETS;
 import static fi.hsl.parkandride.core.domain.Sort.Dir.ASC;
 import static fi.hsl.parkandride.core.domain.Sort.Dir.DESC;
+import static fi.hsl.parkandride.core.domain.Usage.COMMERCIAL;
+import static fi.hsl.parkandride.core.domain.Usage.PARK_AND_RIDE;
+import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.fail;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.SortedSet;
+import java.util.*;
 
 import javax.inject.Inject;
 
@@ -18,9 +27,6 @@ import org.geolatte.geom.Point;
 import org.geolatte.geom.Polygon;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.boot.test.SpringApplicationConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -29,13 +35,19 @@ import com.google.common.collect.ImmutableSortedSet;
 
 import fi.hsl.parkandride.core.back.ContactRepository;
 import fi.hsl.parkandride.core.back.FacilityRepository;
+import fi.hsl.parkandride.core.back.OperatorRepository;
 import fi.hsl.parkandride.core.domain.*;
 import fi.hsl.parkandride.core.service.ValidationException;
-import fi.hsl.parkandride.dev.DevHelper;
 
 public class FacilityDaoTest extends AbstractDaoTest {
 
     public static final MultilingualString NAME = new MultilingualString("Facility");
+
+    public static final MultilingualString STATUS_DESCRIPTION = new MultilingualString("Status description");
+
+    public static final MultilingualString OPENING_HOURS_INFO = new MultilingualString("Opening Hours");
+
+    public static final MultilingualUrl OPENING_HOURS_URL = new MultilingualUrl("http://www.hsl.fi");
 
     private static final Point PORT_LOCATION1 = (Point) Spatial.fromWkt("POINT(25.010822 60.25054)");
 
@@ -64,10 +76,20 @@ public class FacilityDaoTest extends AbstractDaoTest {
 
     public static final List<Port> PORTS = ImmutableList.of(new Port(PORT_LOCATION1, true, false, true, false, "street", "00100", "city", "info"));
 
-    public static final Map<CapacityType, Capacity> CAPACITIES = ImmutableMap.of(CAR, new Capacity(100, 1), BICYCLE, new Capacity(10, 0));
+    public static final NullSafeSortedSet<Service> SERVICES = new NullSafeSortedSet<>(asList(ELEVATOR, TOILETS, ACCESSIBLE_TOILETS));
 
-    public static final Set<Long> SERVICES = ImmutableSet.of(1l, 2l, 3l);
+    public static final Pricing PRICING1 = new Pricing(CAR, PARK_AND_RIDE, 50, SUNDAY, "8", "18", "2 EUR/H");
 
+    public static final Pricing PRICING2 = new Pricing(CAR, PARK_AND_RIDE, 50, EVE, "8", "18", "1 EUR/H");
+
+    public static final Map<CapacityType, Integer> BUILT_CAPACITY = ImmutableMap.of(
+            CAR, 50,
+            ELECTRIC_CAR, 2
+    );
+
+    public static final List<UnavailableCapacity> UNAVAILABLE_CAPACITIES = Arrays.asList(
+            new UnavailableCapacity(CAR, PARK_AND_RIDE, 1)
+    );
 
     @Inject
     ContactRepository contactDao;
@@ -75,11 +97,17 @@ public class FacilityDaoTest extends AbstractDaoTest {
     @Inject
     FacilityRepository facilityDao;
 
+    @Inject
+    OperatorRepository operatorDao;
+
     private FacilityContacts dummyContacts;
+
+    private Long operatorId;
 
     @Before
     public void initialize() {
         dummyContacts = new FacilityContacts(createDummyContact(), createDummyContact());
+        operatorId = createDummyOperator();
     }
 
     @Test
@@ -97,47 +125,46 @@ public class FacilityDaoTest extends AbstractDaoTest {
         assertThat(facility.contacts).isEqualTo(dummyContacts);
 
         // Search
-        facility = facilityDao.findFacilities(new PageableSpatialSearch()).get(0);
-        assertDefault(facility);
+        assertDefault(facilityDao.findFacilities(new PageableFacilitySearch()).get(0));
 
         // Update
         final MultilingualString newName = new MultilingualString("changed name");
         final SortedSet<String> newAliases = ImmutableSortedSet.of("clias");
-        final Map<CapacityType, Capacity> newCapacities = ImmutableMap.of(CAR, new Capacity(100, 50), PARK_AND_RIDE, new Capacity(5, 0));
         final List<Port> newPorts = ImmutableList.of(new Port(PORT_LOCATION2, true, true, true, true), new Port(PORT_LOCATION1, false, false, false, false));
-        final Set<Long> newServices = ImmutableSet.of(4l);
+        final NullSafeSortedSet<Service> newServices = new NullSafeSortedSet<>(asList(LIGHTING));
+        final List<Pricing> newPricing = asList(new Pricing(CAR, COMMERCIAL, 50, BUSINESS_DAY, "8", "18", "10 EUR/H"));
 
         facility.name = newName;
+        facility.status = IN_OPERATION;
+        facility.statusDescription = null;
         facility.aliases = newAliases;
-        facility.capacities = newCapacities;
         facility.ports = newPorts;
-        facility.serviceIds = newServices;
+        facility.services = newServices;
+        facility.pricing = newPricing;
 
         facilityDao.updateFacility(id, facility);
         facility = facilityDao.getFacility(id);
         assertThat(facility.name).isEqualTo(newName);
+        assertThat(facility.status).isEqualTo(IN_OPERATION);
+        assertThat(facility.statusDescription).isNull();
         assertThat(facility.aliases).isEqualTo(newAliases);
-        assertThat(facility.capacities).isEqualTo(newCapacities);
         assertThat(facility.ports).isEqualTo(newPorts);
-        assertThat(facility.serviceIds).isEqualTo(newServices);
+        assertThat(facility.services).isEqualTo(newServices);
+        assertThat(facility.pricing).isEqualTo(newPricing);
+        assertThat(facility.unavailableCapacities).isEqualTo(asList(
+                new UnavailableCapacity(CAR, COMMERCIAL, 0)
+        ));
 
         // Remove aliases, capacities and ports
-        facility.aliases = null;
-        facility.capacities = null;
-        facility.ports = null;
-        facility.serviceIds = null;
+        facility.aliases = new HashSet<>();
+        facility.ports = new ArrayList<>();
+        facility.services = new NullSafeSortedSet<>();
         facility.contacts.service = null;
         facilityDao.updateFacility(id, facility);
 
         // Find by geometry
-        List<Facility> facilities = findByGeometry(OVERLAPPING_AREA);
+        List<FacilityInfo> facilities = findByGeometry(OVERLAPPING_AREA);
         assertThat(facilities).hasSize(1);
-        assertThat(facilities.get(0).aliases).isEmpty();
-        assertThat(facilities.get(0).capacities).isEmpty();
-        assertThat(facilities.get(0).ports).isEmpty();
-        assertThat(facilities.get(0).serviceIds).isEmpty();
-        assertThat(facilities.get(0).contacts).isNotNull();
-        assertThat(facilities.get(0).contacts.service).isNull();
 
         // Not found by geometry
         assertThat(findByGeometry(NON_OVERLAPPING_AREA)).isEmpty();
@@ -145,47 +172,75 @@ public class FacilityDaoTest extends AbstractDaoTest {
 
     private Long createDummyContact() {
         Contact contact = new Contact();
-        contact.name = new MultilingualString("TEST");
+        contact.name = new MultilingualString("TEST " + UUID.randomUUID());
         contact.email = "test@example.com";
         return contactDao.insertContact(contact);
     }
 
-    private void assertDefault(Facility facility) {
-        assertThat(facility).isNotNull();
-        assertThat(facility.location).isEqualTo(LOCATION);
-        assertThat(facility.name).isEqualTo(NAME);
-        assertThat(facility.aliases).isEqualTo(ALIASES);
-        assertThat(facility.capacities).isEqualTo(CAPACITIES);
-        assertThat(facility.ports).isEqualTo(PORTS);
-        assertThat(facility.serviceIds).isEqualTo(SERVICES);
+    private Long createDummyOperator() {
+        Operator operator = new Operator("SMOOTH");
+        return operatorDao.insertOperator(operator);
     }
 
-    private List<Facility> findByGeometry(Polygon geometry) {
-        PageableSpatialSearch search = new PageableSpatialSearch();
-        search.intersecting = geometry;
+    private void assertDefault(FacilityInfo facility) {
+        assertThat(facility).isNotNull();
+        assertThat(facility.location).isEqualTo(LOCATION);
+        assertThat(facility.operatorId).isEqualTo(operatorId);
+        assertThat(facility.status).isEqualTo(EXCEPTIONAL_SITUATION);
+        assertThat(facility.statusDescription).isEqualTo(STATUS_DESCRIPTION);
+        assertThat(facility.name).isEqualTo(NAME);
+        assertThat(facility.builtCapacity).isEqualTo(BUILT_CAPACITY);
+        assertThat(facility.usages).isEqualTo(ImmutableSet.of(PARK_AND_RIDE));
+    }
+
+    private void assertDefault(Facility facility) {
+        assertDefault((FacilityInfo) facility);
+        assertThat(facility.aliases).isEqualTo(ALIASES);
+        assertThat(facility.ports).isEqualTo(PORTS);
+        assertThat(facility.services).isEqualTo(SERVICES);
+        assertThat(facility.pricing).isEqualTo(asList(PRICING1, PRICING2));
+        assertThat(facility.unavailableCapacities).isEqualTo(UNAVAILABLE_CAPACITIES);
+        assertThat(facility.openingHours.byDayType).isEqualTo(ImmutableMap.of(
+                SUNDAY, new TimeDuration("8", "18"),
+                EVE, new TimeDuration("8", "18")
+        ));
+        assertThat(facility.openingHours.info).isEqualTo(OPENING_HOURS_INFO);
+        assertThat(facility.openingHours.url).isEqualTo(OPENING_HOURS_URL);
+    }
+
+    private List<FacilityInfo> findByGeometry(Polygon geometry) {
+        PageableFacilitySearch search = new PageableFacilitySearch();
+        search.geometry = geometry;
         return facilityDao.findFacilities(search).results;
     }
 
     private Facility createFacility() {
+        return createFacility(operatorId, dummyContacts);
+    }
+
+    public static Facility createFacility(Long operatorId, FacilityContacts contacts) {
         Facility facility = new Facility();
         facility.id = 0l;
         facility.name = NAME;
         facility.location = LOCATION;
+        facility.operatorId = operatorId;
+        facility.status = EXCEPTIONAL_SITUATION;
+        facility.statusDescription = STATUS_DESCRIPTION;
         facility.aliases = ALIASES;
-        facility.capacities = CAPACITIES;
         facility.ports = PORTS;
-        facility.serviceIds = SERVICES;
-        facility.contacts = dummyContacts;
-        return facility;
-    }
+        facility.services = SERVICES;
+        facility.contacts = contacts;
 
-    @Test
-    public void summary_with_no_capacities() {
-        Facility facility = createFacility();
-        facility.capacities = ImmutableMap.of();
-        facilityDao.insertFacility(facility);
-        FacilitySummary summary = facilityDao.summarizeFacilities(new SpatialSearch());
-        assertThat(summary.capacities).isEmpty();
+        facility.builtCapacity = BUILT_CAPACITY;
+        // pricing in wrong order should be sorted on load
+        facility.pricing.add(PRICING2);
+        facility.pricing.add(PRICING1);
+        facility.unavailableCapacities = UNAVAILABLE_CAPACITIES;
+
+        facility.openingHours.info = OPENING_HOURS_INFO;
+        facility.openingHours.url = OPENING_HOURS_URL;
+
+        return facility;
     }
 
     @Test
@@ -194,16 +249,18 @@ public class FacilityDaoTest extends AbstractDaoTest {
         f1.name = new MultilingualString("a", "å", "C");
         f1.location = LOCATION;
         f1.contacts = dummyContacts;
+        f1.operatorId = operatorId;
         f1.id = facilityDao.insertFacility(f1);
 
         Facility f2 = new Facility();
         f2.name = new MultilingualString("D", "Ä", "F");
         f2.location = LOCATION;
+        f2.operatorId = operatorId;
         f2.contacts = dummyContacts;
         f2.id = facilityDao.insertFacility(f2);
 
         // Default sort
-        PageableSpatialSearch search = new PageableSpatialSearch();
+        PageableFacilitySearch search = new PageableFacilitySearch();
         assertResultOrder(facilityDao.findFacilities(search), f1.id, f2.id);
 
         // name.fi desc
@@ -222,12 +279,33 @@ public class FacilityDaoTest extends AbstractDaoTest {
 
     @Test(expected = ValidationException.class)
     public void illegal_sort_by() {
-        PageableSpatialSearch search = new PageableSpatialSearch();
+        PageableFacilitySearch search = new PageableFacilitySearch();
         search.sort = new Sort("foobar");
         facilityDao.findFacilities(search);
     }
 
-    private void assertResultOrder(SearchResults<Facility> results, long id1, long id2) {
+    @Test
+    public void unique_name() {
+        Facility facility = createFacility();
+        facilityDao.insertFacility(facility);
+        verifyUniqueName(facility, "fi");
+        verifyUniqueName(facility, "sv");
+        verifyUniqueName(facility, "en");
+    }
+
+    private void verifyUniqueName(Facility facility, String lang) {
+        facility.name = new MultilingualString("something else");
+        try {
+            facility.name.asMap().put(lang, NAME.asMap().get(lang));
+            facilityDao.insertFacility(facility);
+            fail("should not allow duplicate names");
+        } catch (ValidationException e) {
+            assertThat(e.violations).hasSize(1);
+            assertThat(e.violations.get(0).path).isEqualTo("name." + lang);
+        }
+    }
+
+    private void assertResultOrder(SearchResults<FacilityInfo> results, long id1, long id2) {
         assertThat(results.size()).isEqualTo(2);
         assertThat(results.get(0).id).isEqualTo(id1);
         assertThat(results.get(1).id).isEqualTo(id2);
@@ -241,17 +319,5 @@ public class FacilityDaoTest extends AbstractDaoTest {
     @Test(expected = NotFoundException.class)
     public void update_throws_an_exception_if_not_found() {
         facilityDao.updateFacility(0, createFacility());
-    }
-
-    @Test
-    public void summarize_facilities() {
-        facilityDao.insertFacility(createFacility());
-        facilityDao.insertFacility(createFacility());
-        FacilitySummary summary = facilityDao.summarizeFacilities(new SpatialSearch()); // all
-
-        assertThat(summary.facilityCount).isEqualTo(2);
-        assertThat(summary.capacities).hasSize(2);
-        assertThat(summary.capacities.get(CAR)).isEqualTo(new Capacity(200, 2));
-        assertThat(summary.capacities.get(BICYCLE)).isEqualTo(new Capacity(20, 0));
     }
 }

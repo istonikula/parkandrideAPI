@@ -5,14 +5,21 @@ import javax.validation.constraints.NotNull;
 
 import org.hibernate.validator.constraints.Email;
 
+import com.wordnik.swagger.annotations.ApiModelProperty;
+
+import fi.hsl.parkandride.core.domain.validation.PhoneOrEmailRequired;
+
 @PhoneOrEmailRequired
-public class Contact {
+public class Contact implements OperatorEntity {
 
     public Long id;
 
+    @ApiModelProperty(required = true)
     @NotNull
     @Valid
     public MultilingualString name;
+
+    public Long operatorId;
 
     public Phone phone;
 
@@ -56,4 +63,8 @@ public class Contact {
         return info;
     }
 
+    @Override
+    public Long operatorId() {
+        return operatorId;
+    }
 }

@@ -38,6 +38,10 @@ module.exports = function(spec) {
         );
     };
 
+    spec.parent = function(element) {
+        return element.element(by.xpath('..'));
+    };
+
     var that = {};
 
     function capitaliseFirstLetter(string) {
@@ -85,6 +89,13 @@ module.exports = function(spec) {
             parentElement.element(by.css(".lang-sv")).getText(),
             parentElement.element(by.css(".lang-en")).getText()
             ]);
+    };
+
+    spec.select = function(element, name) {
+        element.element(by.css('.ui-select-match')).click();
+        element = browser.driver.switchTo().activeElement();
+        element.sendKeys(name);
+        element.sendKeys(protractor.Key.ENTER);
     };
 
     that.isDisplayed = function() {

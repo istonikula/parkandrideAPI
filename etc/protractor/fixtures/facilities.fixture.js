@@ -14,6 +14,7 @@ module.exports = function () {
         facFull: facility({
             "id": ids._3,
             "name": "Dummy full",
+            "operatorId": 1,
             "location": {
                 "bbox": [24.77640173950195, 60.18169023118941, 24.797001104736328, 60.191931693737104],
                 "type": "Polygon",
@@ -33,23 +34,45 @@ module.exports = function () {
                 h: 60
             },
             aliases: ["alias with spaces", "facFull"],
-            capacities: {
-                "CAR": {"built": 10, "unavailable": 1},
-                "BICYCLE": {"built": 20, "unavailable": 2},
-                "PARK_AND_RIDE": {"built": 30, "unavailable": 3},
-                "DISABLED": {"built": 40, "unavailable": 4},
-                "MOTORCYCLE": {"built": 50, "unavailable": 5},
-                "ELECTRIC_CAR": {"built": 60, "unavailable": 6}
+            builtCapacity: {
+                "CAR": 10,
+                "BICYCLE": 20,
+                "DISABLED": 40,
+                "MOTORCYCLE": 50,
+                "ELECTRIC_CAR":  60
             },
+            "pricing": [
+                {"capacityType":"CAR","usage":"PARK_AND_RIDE","maxCapacity":10,"dayType":"BUSINESS_DAY",
+                    "time":{"from":"00","until":"24"},"price":null},
+                {"capacityType":"DISABLED","usage":"COMMERCIAL","maxCapacity":40,"dayType":"SATURDAY",
+                    "time":{"from":"00","until":"24"},"price":null},
+                {"capacityType":"ELECTRIC_CAR","usage":"PARK_AND_RIDE","maxCapacity":60,"dayType":"SUNDAY",
+                    "time":{"from":"08","until":"18"},"price":null},
+                {"capacityType":"MOTORCYCLE","usage":"PARK_AND_RIDE","maxCapacity":50,"dayType":"HOLIDAY",
+                    "time":{"from":"14","until":"24"},"price":{"fi":"price fi","sv":"price sv","en":"price en"}}
+                // closed on EVE
+            ],
+            "unavailableCapacities": [
+                {"capacityType":"CAR","usage":"PARK_AND_RIDE","capacity":1},
+                {"capacityType":"DISABLED","usage":"COMMERCIAL","capacity":2},
+                {"capacityType":"ELECTRIC_CAR","usage":"PARK_AND_RIDE","capacity":3}
+                // Implicit MOTORCYCLE/PARK_AND_RIDE: 4
+            ],
             contacts: {
                 emergency: 1,
                 operator: 1
             },
-            serviceIds: [4, 5]
+            services: [ 'LIGHTING','COVERED' ],
+            paymentInfo: {
+                paymentMethods: [ 'COINS', 'NOTES' ],
+                detail: { fi: "Lisätietoja", sv: "Tilläggsinformation", en: "Additional info"},
+                url: { fi: "http://www.x-park.fi/hinnasto", sv: "http://www.x-park.fi/prislista", en: "http://www.x-park.fi/pricing" }
+            }
         }),
         facCar: facility({
             "id": ids._4,
             "name": "Dummy CAR",
+            "operatorId": 1,
             "location": {
                 "bbox": [24.807300787353515, 60.166322046355866, 24.82790015258789, 60.176568301796806],
                 "type": "Polygon",
@@ -73,8 +96,8 @@ module.exports = function () {
                 emergency: 1,
                 operator: 1
             },
-            capacities: {
-                "CAR": {"built": 10, "unavailable": 1}
+            builtCapacity: {
+                "CAR": 10
             }
         })
     };
@@ -82,6 +105,7 @@ module.exports = function () {
     self.westend1 = facility({
         "id": ids._1,
         "name": "Westend CAR",
+        "operatorId": 1,
         "location": {
             "bbox": [24.807768741075638, 60.16837631366566, 24.80811206382954, 60.16868052638392],
             "type": "Polygon",
@@ -100,17 +124,15 @@ module.exports = function () {
             emergency: 1,
             operator: 1
         },
-        "capacities": {
-            "CAR": {
-                "built": 100,
-                "unavailable": 0
-            }
+        "builtCapacity": {
+            "CAR": 100
         }
     });
 
     self.westend2 = facility({
         "id": ids._2,
         "name": "Westend BICYCLE",
+        "operatorId": 1,
         "location": {
             "bbox": [24.805209586446352, 60.16861541831023, 24.805365154569223, 60.16873283322467],
             "type": "Polygon",
@@ -129,11 +151,8 @@ module.exports = function () {
             emergency: 1,
             operator: 1
         },
-        "capacities": {
-            "BICYCLE": {
-                "built": 50,
-                "unavailable": 0
-            }
+        "builtCapacity": {
+            "BICYCLE": 50
         }
     });
 
@@ -146,12 +165,25 @@ module.exports = function () {
         }
     };
 
+    self.operator = {
+        id: 1,
+        name: { fi: "smooth operator", sv: "smooth operator", en: "smooth operator" },
+        toPayload: function() {
+            return self.operator;
+        }
+    }
+
     self.all = [
         self.westend1,
         self.westend2
     ];
 
     self.dummies = dummies;
+
+    self.paymentInfo = {};
+    self.paymentInfo.paymentMethods = {};
+    self.paymentInfo.paymentMethods.coins = { id: 1 };
+    self.paymentInfo.paymentMethods.notes = { id: 2 };
 
     return self;
 };

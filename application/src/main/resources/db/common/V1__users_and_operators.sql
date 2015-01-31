@@ -27,5 +27,3 @@ create table app_user (
 );
 
 create sequence user_id_seq increment by 1 start with 1;
-
-insert into app_user (id, username, role, password) values (nextval('user_id_seq'), 'admin', 'ADMIN', 'x1X5yoLwDpZ1CG4iUagSgc4OQznA8Z5WAakRfCLmYMGLpBTwhQi+D5UaPDxd9YHP');

@@ -1,22 +1,40 @@
 package fi.hsl.parkandride.core.domain;
 
+import static java.util.Comparator.comparing;
+import static java.util.Comparator.naturalOrder;
+import static java.util.Comparator.nullsLast;
+
+import java.util.AbstractMap;
+import java.util.Comparator;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 import org.hibernate.validator.constraints.Length;
 import org.hibernate.validator.constraints.NotBlank;
 
 import com.google.common.base.MoreObjects;
+import com.google.common.collect.ImmutableSet;
+import com.wordnik.swagger.annotations.ApiModelProperty;
 
 public class MultilingualString {
 
+    public static Comparator<MultilingualString> COMPARATOR =
+            comparing(((MultilingualString s) -> s.fi), nullsLast(naturalOrder()))
+            .thenComparing(((MultilingualString s) -> s.sv), nullsLast(naturalOrder()))
+            .thenComparing(((MultilingualString s) -> s.en), nullsLast(naturalOrder()));
+
+    @ApiModelProperty(value="Value in Finnish", required = true)
     @NotBlank
     @Length(min=0, max=255)
     public String fi;
 
+    @ApiModelProperty(value="Value in Swedish", required = true)
     @NotBlank
     @Length(min=0, max=255)
     public String sv;
 
+    @ApiModelProperty(value="Value in English", required = true)
     @NotBlank
     @Length(min=0, max=255)
     public String en;
@@ -71,4 +89,30 @@ public class MultilingualString {
                 .add("en", en)
                 .toString();
     }
+
+    public Map<String, String> asMap() {
+        return new AbstractMap<String, String>() {
+            @Override
+            public Set<Entry<String, String>> entrySet() {
+                return ImmutableSet.of(
+                        new SimpleEntry<>("fi", fi),
+                        new SimpleEntry<>("sv", sv),
+                        new SimpleEntry<>("en", en)
+                );
+            }
+
+            @Override
+            public String put(String key, String value) {
+                String oldValue;
+                switch (key) {
+                    case "fi": oldValue = fi; fi = value; break;
+                    case "sv": oldValue = sv; sv = value; break;
+                    case "en": oldValue = en; en = value; break;
+                    default: throw new IllegalArgumentException("Unsupported lang: " + key);
+                }
+                return oldValue;
+            }
+        };
+    }
+
 }

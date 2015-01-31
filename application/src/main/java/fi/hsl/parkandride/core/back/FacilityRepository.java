@@ -16,11 +16,12 @@ public interface FacilityRepository {
 
     Facility getFacilityForUpdate(long id);
 
-    SearchResults<Facility> findFacilities(PageableSpatialSearch search);
+    SearchResults<FacilityInfo> findFacilities(PageableFacilitySearch search);
 
-    FacilitySummary summarizeFacilities(SpatialSearch search);
+    FacilitySummary summarizeFacilities(FacilitySearch search);
 
-    void insertStatuses(long facilityId, List<FacilityStatus> statuses);
+    void insertStatuses(long facilityId, List<Utilization> statuses);
 
-    List<FacilityStatus> getStatuses(long facilityId);
+    List<Utilization> getStatuses(long facilityId);
+
 }

@@ -20,7 +20,7 @@ describe('facility view', function () {
     var f;
 
     function toView(f) {
-        devApi.resetAll({ facilities: [f], contacts: [fixtures.facilitiesFixture.contact]});
+        devApi.resetAll({ facilities: [f], contacts: [fixtures.facilitiesFixture.contact], operators: [fixtures.facilitiesFixture.operator]});
         viewPage.get(f.id);
         expect(viewPage.isDisplayed()).toBe(true);
         return f;
@@ -31,18 +31,20 @@ describe('facility view', function () {
             f = toView(facFull);
         });
 
-        it('to edit view', function () {
-            viewPage.toEditView();
-            expect(editPage.isDisplayed()).toBe(true);
-        });
-
         it('to hub list', function () {
             viewPage.toListView();
             expect(listPage.isDisplayed()).toBe(true);
         });
+
+        it('to edit view', function () {
+            devApi.loginAs('ADMIN');
+            viewPage.get(f.id);
+            viewPage.toEditView();
+            expect(editPage.isDisplayed()).toBe(true);
+        });
     });
 
-    describe('with aliases, capacities and services', function () {
+    describe('with full data', function () {
         beforeEach(function () {
             f = toView(facFull);
         });
@@ -57,14 +59,48 @@ describe('facility view', function () {
             expect(viewPage.capacitiesTable.getCapacities(_.keys(f.capacities))).toEqual(f.capacities);
 
             expect(viewPage.isServicesDisplayed()).toBe(true);
-            expect(viewPage.getServices()).toEqual(["Katettu, Valaistus"]);
+            expect(viewPage.getServices()).toEqual("Valaistus, Katettu");
+
+            expect(viewPage.isPaymentInfoDisplayed()).toBe(true);
+            expect(viewPage.getPaymentMethods()).toEqual("Kolikko, Seteli");
+
+            expect(viewPage.getOpeningHours()).toEqual({
+                "Arkipäivä": "00 - 24",
+                "Lauantai": "00 - 24",
+                "Sunnuntai": "08 - 18",
+                "Arkipyhä": "14 - 24",
+                "Aatto": "Kiinni"
+            });
+
+            expect(viewPage.getPricing()).toEqual([
+                {capacityType: "Henkilöauto", usage: "Liityntä", maxCapacity: "10",
+                    dayType: "Arkipäivä", is24h: "✓", from: "", until: "",
+                    isFree: "✓", priceFi: "", priceSv: "", priceEn: ""},
+                {capacityType: "Invapaikka", usage: "Kaupallinen", maxCapacity: "40",
+                    dayType: "Lauantai", is24h: "✓", from: "", until: "",
+                    isFree: "✓", priceFi: "", priceSv: "", priceEn: ""},
+                {capacityType: "Sähköauto", usage: "Liityntä", maxCapacity: "60",
+                    dayType: "Sunnuntai", is24h: "", from: "08", until: "18",
+                    isFree: "✓", priceFi: "", priceSv: "", priceEn: ""},
+                {capacityType: "Moottoripyörä", usage: "Liityntä", maxCapacity: "50",
+                    dayType: "Arkipyhä", is24h: "", from: "14", until: "24",
+                    isFree: "", priceFi: "price fi", priceSv: "price sv", priceEn: "price en"}
+            ]);
+
+            expect(viewPage.getUnavailableCapacities()).toEqual([
+                {capacityType: "Henkilöauto", usage: "Liityntä", capacity: "1"},
+                {capacityType: "Invapaikka", usage: "Kaupallinen", capacity: "2"},
+                {capacityType: "Sähköauto", usage: "Liityntä", capacity: "3"},
+                {capacityType: "Moottoripyörä", usage: "Liityntä", capacity: "0"}
+            ]);
         });
     });
 
     it('view port', function() {
         f = {
             "id":1,"name":{"fi":"test","sv":"test","en":"tes"},
-            "aliases":[],"capacities":{},"serviceIds":[],
+            "aliases":[],"capacities":{},"services":[],
+            "operatorId": 1,
             "contacts":{
                 "emergency": 1,
                 "operator": 1
@@ -108,12 +144,73 @@ describe('facility view', function () {
     describe('without services', function () {
         beforeEach(function () {
             f = facFull.copy();
-            f.serviceIds = [];
+            f.services = [];
             toView(f);
         });
 
-        it('aliases are not displayed', function () {
+        it('services are not displayed', function () {
             expect(viewPage.isServicesDisplayed()).toBe(false);
+        });
+    });
+
+    describe('payment info', function () {
+        describe('without any info', function () {
+            beforeEach(function () {
+                f = facFull.copy();
+                f.paymentInfo = {};
+                toView(f);
+            });
+
+            it('payment info is not displayed', function () {
+                expect(viewPage.isPaymentInfoDisplayed()).toBe(false);
+            });
+        });
+
+        describe('with payment methods', function () {
+            beforeEach(function () {
+                f = facFull.copy();
+                f.paymentInfo = {};
+                f.paymentInfo.paymentMethods = facFull.copy().paymentInfo.paymentMethods;
+                toView(f);
+            });
+
+            it('payment info is displayed', function () {
+                expect(viewPage.isPaymentInfoDisplayed()).toBe(true);
+                expect(viewPage.getPaymentMethods()).toEqual("Kolikko, Seteli");
+                expect(viewPage.isPaymentInfoDetailsDisplayed()).toBe(false);
+            });
+        });
+
+        describe('with details', function () {
+            beforeEach(function () {
+                f = facFull.copy();
+                f.paymentInfo = {};
+                f.paymentInfo.detail = facFull.copy().paymentInfo.detail;
+                toView(f);
+            });
+
+            it('payment info is displayed', function () {
+                expect(viewPage.isPaymentInfoDisplayed()).toBe(true);
+                expect(viewPage.isPaymentMethodsDisplayed()).toBe(false);
+                expect(viewPage.isPaymentInfoDetailsDisplayed()).toBe(true);
+                expect(viewPage.getPaymentInfoDetail()).toEqual([f.paymentInfo.detail.fi, f.paymentInfo.detail.sv, f.paymentInfo.detail.en]);
+            });
+        });
+
+        describe('with url', function () {
+            beforeEach(function () {
+                f = facFull.copy();
+                f.paymentInfo = {};
+                f.paymentInfo.url = facFull.copy().paymentInfo.url;
+                toView(f);
+            });
+
+            it('payment info is displayed', function () {
+                expect(viewPage.isPaymentInfoDisplayed()).toBe(true);
+                expect(viewPage.isPaymentMethodsDisplayed()).toBe(false);
+                expect(viewPage.isPaymentInfoDetailsDisplayed()).toBe(true);
+                expect(viewPage.getPaymentInfoUrl()).toEqual([f.paymentInfo.url.fi, f.paymentInfo.url.sv, f.paymentInfo.url.en]);
+            });
         });
     });
 
@@ -132,7 +229,7 @@ describe('facility view', function () {
     describe('without capacities', function () {
         beforeEach(function () {
             f = facFull.copy();
-            f.capacities = {};
+            f.builtCapacity = {};
             toView(f);
         });
 

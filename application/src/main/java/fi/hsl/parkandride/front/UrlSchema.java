@@ -4,6 +4,10 @@ public class UrlSchema {
 
     public static final String GEOJSON = "application/vnd.geo+json";
 
+    public static final String API_KEY = "apiKey";
+
+    public static final String DOCS = "/docs";
+
 
     public static final String API = "/api/v1";
 
@@ -16,6 +20,10 @@ public class UrlSchema {
     public static final String FACILITY_STATUS = FACILITY + "/status" ;
 
     public static final String CAPACITY_TYPES = API + "/capacity-types";
+
+    public static final String USAGES = API + "/usages";
+
+    public static final String DAY_TYPES = API + "/day-types";
 
 
     public static final String HUBS = API + "/hubs";
@@ -34,10 +42,6 @@ public class UrlSchema {
 
     public static final String SERVICES = API + "/services";
 
-    public static final String SERVICE_ID = "serviceId";
-
-    public static final String SERVICE = SERVICES + "/{" + SERVICE_ID + "}" ;
-
 
     public static final String OPERATORS = API + "/operators";
 
@@ -46,12 +50,17 @@ public class UrlSchema {
     public static final String OPERATOR = OPERATORS + "/{" + OPERATOR_ID + "}" ;
 
 
-    public static final String FEATURES = API + "/features" ;
-
 
     public static final String INTERNAL = "/internal";
 
+    public static final String FEATURES = INTERNAL + "/features" ;
+
     public static final String LOGIN = INTERNAL + "/login";
+
+
+    public static final String PAYMENT_METHODS = API + "/payment-methods";
+
+    public static final String FACILITY_STATUSES = API + "/facility-statuses";
 
     /**
      * TESTING
@@ -59,6 +68,8 @@ public class UrlSchema {
     public static final String DEV_API = "/dev-api";
 
     public static final String DEV_OPERATORS = DEV_API + "/operators";
+
+    public static final String DEV_USERS = DEV_API + "/users";
 
     public static final String DEV_CONTACTS = DEV_API + "/contacts";
 

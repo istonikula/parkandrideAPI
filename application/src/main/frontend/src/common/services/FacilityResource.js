@@ -7,7 +7,7 @@
 
         function cleanupCapacities(capacities) {
             for (var capacityType in capacities) {
-                if (!(capacities[capacityType] &&  capacities[capacityType].built && capacities[capacityType].built >= 1)) {
+                if (!capacities[capacityType]) {
                     delete capacities[capacityType];
                 }
             }
@@ -16,6 +16,22 @@
         function cleanupPorts(ports) {
             for (var i=0; i < ports.length; i++) {
                 delete ports[i]._id;
+            }
+        }
+
+        function typeUsageKey(capacityType, usage) {
+            return capacityType + "/" + usage;
+        }
+
+        function cleanupUnavailableCapacities(unavailableCapacities, pricing) {
+            if (unavailableCapacities && unavailableCapacities.length > 0) {
+                var typeUsages = {};
+                _.forEach(pricing, function(p) {
+                    typeUsages[typeUsageKey(p.capacityType, p.usage)] = true;
+                });
+                _.remove(unavailableCapacities, function(uc) {
+                    return !typeUsages[typeUsageKey(uc.capacityType, uc.usage)];
+                });
             }
         }
 
@@ -43,8 +59,17 @@
 
         api.newFacility = function() {
             return {
+                status: "IN_OPERATION",
                 aliases: [],
-                capacities: {},
+                builtCapacity: {},
+                pricing: [
+                    { dayType: 'BUSINESS_DAY' },
+                    { dayType: 'SATURDAY' },
+                    { dayType: 'SUNDAY' },
+                    { dayType: 'HOLIDAY' },
+                    { dayType: 'EVE' }
+                ],
+                unavailableCapacities: [],
                 ports: [],
                 contacts: {}
             };
@@ -75,8 +100,9 @@
         };
 
         api.save = function(facility) {
-            cleanupCapacities(facility.capacities);
+            cleanupCapacities(facility.builtCapacity);
             cleanupPorts(facility.ports);
+            cleanupUnavailableCapacities(facility.unavailableCapacities, facility.pricing);
             if (facility.id) {
                 return $http.put("api/v1/facilities/" + facility.id, facility).then(function(response){
                     return response.data.id;
@@ -116,13 +142,6 @@
                 params: { summary: true, ids: facilityIds }
             }).then(function(response) {
                 return response.data;
-            });
-        };
-
-        api.getCapacityTypes = function() {
-            return $http.get("api/v1/capacity-types").then(function(response) {
-                capacityTypesCached = response.data.results;
-                return capacityTypesCached;
             });
         };
 

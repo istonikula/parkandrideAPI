@@ -1,10 +1,11 @@
 package fi.hsl.parkandride.front;
 
-import static fi.hsl.parkandride.front.FeatureCollection.HUB_TO_FEATURE;
+import static fi.hsl.parkandride.front.UrlSchema.API_KEY;
 import static fi.hsl.parkandride.front.UrlSchema.GEOJSON;
 import static fi.hsl.parkandride.front.UrlSchema.HUB;
 import static fi.hsl.parkandride.front.UrlSchema.HUBS;
 import static fi.hsl.parkandride.front.UrlSchema.HUB_ID;
+import static fi.hsl.parkandride.front.geojson.FeatureCollection.HUB_TO_FEATURE;
 import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.OK;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
@@ -22,17 +23,26 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import com.wordnik.swagger.annotations.Api;
+import com.wordnik.swagger.annotations.ApiOperation;
+import com.wordnik.swagger.annotations.Authorization;
+
+import fi.hsl.parkandride.core.domain.HubSearch;
 import fi.hsl.parkandride.core.domain.Hub;
 import fi.hsl.parkandride.core.domain.SearchResults;
 import fi.hsl.parkandride.core.domain.User;
 import fi.hsl.parkandride.core.service.HubService;
+import fi.hsl.parkandride.front.geojson.Feature;
+import fi.hsl.parkandride.front.geojson.FeatureCollection;
 
 @RestController
+@Api("hubs")
 public class HubController {
 
     @Inject
     HubService hubService;
 
+    @ApiOperation(value = "Create hub", authorizations = @Authorization(API_KEY))
     @RequestMapping(method = POST, value = HUBS, produces = APPLICATION_JSON_VALUE)
     public ResponseEntity<Hub> createHub(@RequestBody Hub hub, User currentUser, UriComponentsBuilder builder) {
         Hub newHub = hubService.createHub(hub, currentUser);
@@ -54,6 +64,7 @@ public class HubController {
         return new ResponseEntity<Feature>(HUB_TO_FEATURE.apply(hub), OK);
     }
 
+    @ApiOperation(value = "Update hub", authorizations = @Authorization(API_KEY))
     @RequestMapping(method = PUT, value = HUB, produces = APPLICATION_JSON_VALUE)
     public ResponseEntity<Hub> updateHub(@PathVariable(HUB_ID) long hubId,
                                          @RequestBody Hub hub,
@@ -63,14 +74,14 @@ public class HubController {
     }
 
     @RequestMapping(method = GET, value = HUBS, produces = APPLICATION_JSON_VALUE)
-    public ResponseEntity<SearchResults<Hub>> findHubs(SpatialSearchDto search) {
-        SearchResults<Hub> results = hubService.search(search.toSpatialSearch());
+    public ResponseEntity<SearchResults<Hub>> findHubs(HubSearch search) {
+        SearchResults<Hub> results = hubService.search(search);
         return new ResponseEntity<>(results, OK);
     }
 
     @RequestMapping(method = GET, value = HUBS, produces = GEOJSON)
-    public ResponseEntity<FeatureCollection> findHubsAsFeatureCollection(SpatialSearchDto search) {
-        SearchResults<Hub> results = hubService.search(search.toSpatialSearch());
+    public ResponseEntity<FeatureCollection> findHubsAsFeatureCollection(HubSearch search) {
+        SearchResults<Hub> results = hubService.search(search);
         return new ResponseEntity<>(FeatureCollection.ofHubs(results), OK);
     }
 

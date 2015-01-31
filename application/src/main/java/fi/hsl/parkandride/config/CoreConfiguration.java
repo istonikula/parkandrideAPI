@@ -45,7 +45,7 @@ public class CoreConfiguration {
 
     @Bean
     public UserService userService() {
-        return new UserService(userRepository(), authService(), authenticationService(), validationService());
+        return new UserService(userRepository(), authenticationService(), validationService());
     }
 
     @Bean
@@ -59,28 +59,14 @@ public class CoreConfiguration {
     }
 
     @Bean
-    public AuthService authService() {
-        return new AuthService();
-    }
-
-    @Bean
     public ContactRepository contactRepository() {
         return new ContactDao(queryFactory);
     }
 
+
     @Bean
     public ContactService contactService() {
-        return new ContactService(contactRepository(), validationService(), authService());
-    }
-
-    @Bean
-    public ServiceRepository serviceRepository() {
-        return new ServiceDao(queryFactory);
-    }
-
-    @Bean
-    public ServiceService serviceService() {
-        return new ServiceService(serviceRepository());
+        return new ContactService(contactRepository(), validationService());
     }
 
     @Bean
@@ -90,7 +76,7 @@ public class CoreConfiguration {
 
     @Bean
     public OperatorService operatorService() {
-        return new OperatorService(operatorRepository(), validationService(), authService());
+        return new OperatorService(operatorRepository(), validationService());
     }
 
     @Bean
@@ -100,7 +86,7 @@ public class CoreConfiguration {
 
     @Bean
     public FacilityService facilityService () {
-        return new FacilityService(facilityRepository(), validationService(), authService());
+        return new FacilityService(facilityRepository(), contactRepository(), validationService());
     }
 
     @Bean
@@ -115,6 +101,7 @@ public class CoreConfiguration {
 
     @Bean
     public HubService hubService() {
-        return new HubService(hubRepository(), validationService(), authService());
+        return new HubService(hubRepository(), validationService());
     }
+
 }

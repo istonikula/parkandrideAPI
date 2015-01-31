@@ -1,8 +1,7 @@
 package fi.hsl.parkandride.front;
 
-import static fi.hsl.parkandride.front.FeatureCollection.FACILITY_TO_FEATURE;
 import static fi.hsl.parkandride.front.UrlSchema.*;
-import static java.util.Arrays.asList;
+import static fi.hsl.parkandride.front.geojson.FeatureCollection.FACILITY_TO_FEATURE;
 import static org.springframework.http.HttpStatus.CREATED;
 import static org.springframework.http.HttpStatus.OK;
 import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
@@ -14,7 +13,6 @@ import java.util.List;
 
 import javax.inject.Inject;
 
-import org.joda.time.Instant;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,23 +21,23 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import com.google.common.collect.Lists;
+import com.wordnik.swagger.annotations.Api;
+import com.wordnik.swagger.annotations.ApiOperation;
+import com.wordnik.swagger.annotations.Authorization;
 
-import fi.hsl.parkandride.core.domain.CapacityType;
-import fi.hsl.parkandride.core.domain.Facility;
-import fi.hsl.parkandride.core.domain.FacilityStatus;
-import fi.hsl.parkandride.core.domain.FacilitySummary;
-import fi.hsl.parkandride.core.domain.SearchResults;
-import fi.hsl.parkandride.core.domain.User;
-import fi.hsl.parkandride.core.service.AuthService;
+import fi.hsl.parkandride.core.domain.*;
 import fi.hsl.parkandride.core.service.FacilityService;
+import fi.hsl.parkandride.front.geojson.Feature;
+import fi.hsl.parkandride.front.geojson.FeatureCollection;
 
 @RestController
+@Api("facilities")
 public class FacilityController {
 
     @Inject
     FacilityService facilityService;
 
+    @ApiOperation(value = "Create facility", authorizations = @Authorization(API_KEY))
     @RequestMapping(method = POST, value = FACILITIES, produces = APPLICATION_JSON_VALUE)
     public ResponseEntity<Facility> createFacility(@RequestBody Facility facility,
                                                    User currentUser,
@@ -63,6 +61,7 @@ public class FacilityController {
         return new ResponseEntity<Feature>(FACILITY_TO_FEATURE.apply(facility), OK);
     }
 
+    @ApiOperation(value = "Update facility", authorizations = @Authorization(API_KEY))
     @RequestMapping(method = PUT, value = FACILITY, produces = APPLICATION_JSON_VALUE)
     public ResponseEntity<Facility> updateFacility(@PathVariable(FACILITY_ID) long facilityId,
                                                    @RequestBody Facility facility,
@@ -72,37 +71,33 @@ public class FacilityController {
     }
 
     @RequestMapping(method = GET, value = FACILITIES, produces = APPLICATION_JSON_VALUE)
-    public ResponseEntity<SearchResults<Facility>> findFacilities(PageableSpatialSearchDto search) {
-        SearchResults<Facility> results = facilityService.search(search.toSpatialSearch());
+    public ResponseEntity<SearchResults<Facility>> findFacilities(PageableFacilitySearch search) {
+        SearchResults<Facility> results = facilityService.search(search);
         return new ResponseEntity<>(results, OK);
     }
 
     @RequestMapping(method = GET, value = FACILITIES, params = "summary", produces = APPLICATION_JSON_VALUE)
-    public ResponseEntity<FacilitySummary> summarizeFacilities(SpatialSearchDto search) {
-        FacilitySummary summary = facilityService.summarize(search.toSpatialSearch());
+    public ResponseEntity<FacilitySummary> summarizeFacilities(FacilitySearch search) {
+        FacilitySummary summary = facilityService.summarize(search);
         return new ResponseEntity<>(summary, OK);
     }
 
     @RequestMapping(method = GET, value = FACILITIES, produces = GEOJSON)
-    public ResponseEntity<FeatureCollection> findFacilitiesAsFeatureCollection(PageableSpatialSearchDto search) {
-        SearchResults<Facility> results = facilityService.search(search.toSpatialSearch());
+    public ResponseEntity<FeatureCollection> findFacilitiesAsFeatureCollection(PageableFacilitySearch search) {
+        SearchResults<FacilityInfo> results = facilityService.search(search);
         return new ResponseEntity<>(FeatureCollection.ofFacilities(results), OK);
     }
-
-    @RequestMapping(method = GET, value = CAPACITY_TYPES)
-    public ResponseEntity<SearchResults<CapacityType>> capacityTypes() {
-        List<CapacityType> types = asList(CapacityType.values());
-        return new ResponseEntity<>(SearchResults.of(types), OK);
-    }
-
+    @ApiOperation(value = "Update facility status", authorizations = @Authorization(API_KEY))
     @RequestMapping(method = PUT, value = FACILITY_STATUS, produces = APPLICATION_JSON_VALUE)
-    public void createStatuses(@PathVariable(FACILITY_ID) long facilityId, @RequestBody List<FacilityStatus> statuses) {
-        facilityService.createStatuses(facilityId, statuses);
+    public void createStatuses(@PathVariable(FACILITY_ID) long facilityId,
+                               @RequestBody List<Utilization> statuses,
+                               User currentUser) {
+        facilityService.createStatuses(facilityId, statuses, currentUser);
     }
 
     @RequestMapping(method = GET, value = FACILITY_STATUS, produces = APPLICATION_JSON_VALUE)
-    public ResponseEntity<Results<FacilityStatus>> getStatuses(@PathVariable(FACILITY_ID) long facilityId) {
-        List<FacilityStatus> statuses = facilityService.getStatuses(facilityId);
+    public ResponseEntity<Results<Utilization>> getStatuses(@PathVariable(FACILITY_ID) long facilityId) {
+        List<Utilization> statuses = facilityService.getStatuses(facilityId);
         return new ResponseEntity<>(Results.of(statuses), OK);
     }
 }

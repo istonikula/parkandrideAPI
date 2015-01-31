@@ -14,6 +14,8 @@
         $scope.contact = contact;
         $scope.titleKey = 'contacts.action.' + (create ? 'new' : 'edit');
 
+        $scope.allOperators = [];
+
         function saveContact() {
             ContactResource.save(contact).then(
                 function(contact) {
@@ -44,19 +46,24 @@
         };
     });
 
-    m.factory("editContact", function($modal, ContactResource) {
+    m.factory("editContact", function($modal, ContactResource, Session) {
         return function(contact, create) {
             var modalInstance = $modal.open({
                 templateUrl: 'contacts/contactEdit.tpl.html',
                 controller: 'ContactEditCtrl',
                 resolve: {
                     contact: function () {
+                        if (!contact.operatorId) {
+                            var login = Session.get();
+                            contact.operatorId = login && login.operatorId;
+                        }
                         return _.cloneDeep(contact);
                     },
                     create: function() {
                         return create;
                     }
-                }
+                },
+                backdrop: 'static'
             });
             return modalInstance.result;
         };
@@ -64,7 +71,7 @@
 
     m.config(function($stateProvider) {
         $stateProvider.state('contact-list', {
-            parent: 'root',
+            parent: 'contactstab',
             url: '/contacts',
             views: {
                 "main": {

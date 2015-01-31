@@ -13,6 +13,17 @@
 		</div>
 		<form name="editContactForm" class="form-horizontal" role="form" novalidate>
 			<div class="row">
+				<label>{{"operators.label" | translate}}</label>
+			</div>
+			<div class="row">
+				<div class="column3 first-column">
+					<div class="form-group">
+						<operator-select object="contact"></operator-select>
+					</div>
+				</div>
+			</div>
+
+			<div class="row">
 				<label>{{ "contacts.name.label" | translate }} *</label>
 			</div>
 			<div class="row">
@@ -20,7 +31,7 @@
 			</div>
 
 			<div class="row">
-				<div class="col-lg-4 col-md-4 col-sm-4 col-xs-12 column first-column">
+				<div class="column3 first-column">
 					<div class="form-group">
 						<label>{{ "contacts.phone.label" | translate }} (*)</label>
 						<div>
@@ -31,7 +42,7 @@
 			</div>
 
 			<div class="row">
-				<div class="col-lg-4 col-md-4 col-sm-4 col-xs-12 column first-column">
+				<div class="column3 first-column">
 					<div class="form-group">
 						<label>{{ "contacts.email.label" | translate }} (*)</label>
 						<div>
@@ -62,9 +73,10 @@
 	</div>
 	<div class="modal-footer">
 		<div class="row">
-			<div class="column">
+			<div class="last-column">
 				<button id="wdContactCancel" class="btn btn-xs-secondary" ng-click="cancel()">{{ "common.action.cancel" | translate }}</button>
-				<button id="wdContactOk" class="btn btn-xs" ng-click="ok(editContactForm)">{{ "common.action.ok" | translate }}</button>
+				<button id="wdContactOk" class="btn btn-xs" ng-click="ok(editContactForm)"
+						ng-if="permit([CONTACT_CREATE, CONTACT_UPDATE], contact.operatorId)">{{ "common.action.ok" | translate }}</button>
 			</div>
 		</div>
 	</div>

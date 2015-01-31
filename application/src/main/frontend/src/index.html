@@ -7,9 +7,6 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1">
 	<link rel="shortcut icon" href="https://www.hsl.fi/sites/all/themes/custom/hsl/favicon.ico" type="image/vnd.microsoft.icon" />
 
-	<!-- font awesome from BootstrapCDN -->
-	<link href="https://netdna.bootstrapcdn.com/font-awesome/4.0.3/css/font-awesome.css" rel="stylesheet">
-
 	<!-- compiled CSS --><% styles.forEach( function ( file ) { %>
 	<link rel="stylesheet" type="text/css" href="<%= file %>" /><% }); %>
 
@@ -26,23 +23,23 @@
 		<div class="page-header navbar-static-top" role="navigation">
 			<div class="container">
 				<div class="row">
-					<div class="col-lg-4 col-md-5 col-sm-5 col-xs-12 first-column">
+					<div class="logo-column first-column">
 						<img class="img-responsive logo" src="assets/hsl-liipi-logo2.png" alt="{{ 'header.logodesc' | translate }}">
 					</div>
-					<div class="col-lg-6 col-md-5 col-sm-4 col-xs-8 navi-col">
-						<tabset>
-							<tab heading="{{ 'hubs.title' | translate }}" ui-sref="hub-list"></tab>
-							<tab heading="{{ 'contacts.title' | translate }}" ui-sref="contact-list"></tab>
-							<tab heading="{{ 'operators.title' | translate }}" ui-sref="operator-list"></tab>
-							<tab heading="Dev" ui-sref="dev-page"></tab>
-						</tabset>
+					<div class="navi-col">
+						<ul class="nav nav-tabs">
+							<li ng-class="{active: $state.includes('hubstab')}"><a ui-sref="hub-list" translate="hubs.title"></a></li>
+							<li ng-class="{active: $state.includes('contactstab')}"><a ui-sref="contact-list" translate="contacts.title"></a></li>
+							<li ng-class="{active: $state.includes('operatorstab')}"><a ui-sref="operator-list" translate="operators.title"></a></li>
+							<li ng-class="{active: $state.includes('devtab')}" toggle feature="dev"><a ui-sref="dev-page">Dev</a></li>
+						</ul>
 					</div>
-					<div class="col-lg-2 col-md-2 col-sm-3 col-xs-4 logout last-column">
+					<div class="logout last-column">
 						<div class="pull-right">
-							<button id="openLoginPrompt" class="btn btn-xs" ng-click="appCtrl.openLoginPrompt()"
-									ng-if="!appCtrl.isUserLoggedIn()">Login</button>
-							<button id="logout" class="btn btn-xs" ng-click="appCtrl.logout()"
-									ng-if="appCtrl.isUserLoggedIn()">Logout</button>
+							<button id="openLoginPrompt" class="link-btn" ng-click="appCtrl.openLoginPrompt()"
+									ng-if="!appCtrl.isUserLoggedIn()">Kirjaudu sisään</button>
+							<button id="logout" class="link-btn" ng-click="appCtrl.logout()"
+									ng-if="appCtrl.isUserLoggedIn()">Kirjaudu ulos</button>
 						</div>
 					</div>
 				</div>

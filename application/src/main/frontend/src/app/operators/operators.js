@@ -55,7 +55,8 @@
                     create: function() {
                         return create;
                     }
-                }
+                },
+                backdrop: 'static'
             });
             return modalInstance.result;
         };
@@ -63,7 +64,7 @@
 
     m.config(function($stateProvider) {
         $stateProvider.state('operator-list', {
-            parent: 'root',
+            parent: 'operatorstab',
             url: '/operators',
             views: {
                 "main": {
@@ -105,6 +106,30 @@
         return {
             restrict: 'E',
             templateUrl: 'operators/operatorListNavi.tpl.html'
+        };
+    });
+
+    m.directive('operatorSelect', function (OperatorResource, editOperator) {
+        return {
+            restrict: 'E',
+            scope: {
+                object: '=',
+                mandatory: '@'
+            },
+            templateUrl: 'operators/operatorSelect.tpl.html',
+            transclude: false,
+            link: function(scope) {
+                scope.allOperators = [];
+                OperatorResource.listOperators().then(function(response) {
+                    scope.allOperators = response.results;
+                });
+                scope.createOperator = function() {
+                    editOperator({}, true).then(function(operator) {
+                        scope.allOperators.push(operator);
+                        scope.object.operatorId = operator.id;
+                    });
+                };
+            }
         };
     });
 

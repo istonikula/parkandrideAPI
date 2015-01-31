@@ -5,15 +5,16 @@
         'parkandride.capacities',
         'parkandride.layout',
         'parkandride.address',
+        'parkandride.OperatorResource',
         'parkandride.ContactResource',
         'parkandride.FacilityResource',
-        'parkandride.ServiceResource',
+        'parkandride.pricing',
         'parkandride.layout'
     ]);
 
     m.config(function config($stateProvider) {
         $stateProvider.state('facility-view', { // dot notation in ui-router indicates nested ui-view
-            parent: 'root',
+            parent: 'hubstab',
             url: '/facilities/view/:id', // TODO set facilities base path on upper level and say here /create ?
             views: {
                 "main": {
@@ -22,15 +23,6 @@
                     resolve: {
                         facility: function($stateParams, FacilityResource) {
                             return FacilityResource.getFacility($stateParams.id);
-                        },
-                        services: function(ServiceResource, facility) {
-                            if (!_.isEmpty(facility.serviceIds)) {
-                                return ServiceResource.listServices({ids: facility.serviceIds}).then(function(results) {
-                                    return results.results;
-                                });
-                            } else {
-                                return [];
-                            }
                         },
                         contacts: function(ContactResource, facility)  {
                             var contactIds = _.filter(_.values(facility.contacts));
@@ -41,6 +33,9 @@
                             } else {
                                 return {};
                             }
+                        },
+                        operator: function(OperatorResource, facility) {
+                            return OperatorResource.getOperator(facility.operatorId);
                         }
                     }
                 }
@@ -49,20 +44,68 @@
         });
     });
 
-    m.controller('FacilityViewCtrl', function(facility, services, contacts) {
-        this.facility = facility;
-        this.services = services;
-        this.contacts = contacts;
-        this.hasCapacities = function() {
-          return _.keys(facility.capacities).length !== 0;
+    m.controller('FacilityViewCtrl', function(PricingService, schema, facility, contacts, operator) {
+        var self = this;
+        self.services = schema.services.values;
+        self.dayTypes = schema.dayTypes.values;
+        self.facility = facility;
+        self.contacts = contacts;
+        self.operator = operator;
+        self.isFree = function(pricing) {
+            return PricingService.isFree(pricing);
         };
-        this.hasServices = function() {
-            return services.length > 0;
+        self.is24h = function(pricing) {
+            return PricingService.is24h(pricing);
         };
-        this.getServiceNames = function() {
-            return _.map(services, function(service) {
-                return service.name.fi;
+        self.hasOpeningHoursByDayType = function() {
+            return !_.isEmpty(self.facility.openingHours.byDayType);
+        };
+        self.hasOpeningHoursInfo= function() {
+            return !_.isEmpty(self.facility.openingHours.info) || !_.isEmpty(self.facility.openingHours.url);
+        };
+        self.hasCapacities = function() {
+          return !_.isEmpty(facility.builtCapacity);
+        };
+        self.hasServices = function() {
+            return self.facility.services.length > 0;
+        };
+        self.getServiceNames = function() {
+            return _.map(self.facility.services, function(service) {
+                return schema.services[service].label;
             });
+        };
+        self.isRepeatingValue = function(collection, i, properties) {
+            if (!_.isArray(properties)) {
+                properties = [properties];
+            }
+            if (i === 0) {
+                return false;
+            }
+            return _.reduce(
+                properties,
+                function(and, property) {
+                    return and && collection[i - 1][property] === collection[i][property];
+                },
+                true);
+        };
+
+        self.hasPaymentInfo = function() {
+            return self.hasPaymentMethods() || self.hasPaymentInfoDetails();
+        };
+        self.hasPaymentMethods = function() {
+            return facility.paymentInfo.paymentMethods.length > 0;
+        };
+        self.getPaymentMethodNames = function() {
+            function hasPaymentMethod(paymentMethod) {
+                return  _.contains(facility.paymentInfo.paymentMethods, paymentMethod.id);
+            }
+
+            return _.map(_.filter(schema.paymentMethods.values, hasPaymentMethod), function(paymentMethod) {
+                return paymentMethod.label;
+            });
+        };
+        self.hasPaymentInfoDetails = function() {
+            return facility.paymentInfo.detail || facility.paymentInfo.url;
         };
     });
 

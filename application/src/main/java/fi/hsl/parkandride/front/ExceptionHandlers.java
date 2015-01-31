@@ -15,6 +15,7 @@ import java.util.Map;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 
+import org.apache.catalina.connector.ClientAbortException;
 import org.joda.time.DateTime;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -45,12 +46,17 @@ public class ExceptionHandlers {
     @ExceptionHandler(NotFoundException.class)
     @ResponseStatus(value= NOT_FOUND)
     public void notFound(HttpServletRequest req, NotFoundException ex) {
-
+        // status: 404
     }
 
     @ExceptionHandler(ValidationException.class)
     public ResponseEntity<Map<String, Object>> validationException(HttpServletRequest request, ValidationException ex) {
         return handleError(request, BAD_REQUEST, ex, ex.getMessage(), ex.violations);
+    }
+
+    @ExceptionHandler(ClientAbortException.class)
+    public void clientAbortException(ClientAbortException e) {
+        // Nothing to respond here as client has terminated connection
     }
 
     @ExceptionHandler(BindException.class)
@@ -89,12 +95,12 @@ public class ExceptionHandlers {
     private String getPath(JsonMappingException jsonEx) {
         StringBuilder path = new StringBuilder();
         for (JsonMappingException.Reference ref : jsonEx.getPath()) {
-            if (path.length() > 0) {
-                path.append('.');
-            }
             String field = ref.getFieldName();
             int index = ref.getIndex();
             if (field != null) {
+                if (path.length() > 0) {
+                    path.append('.');
+                }
                 path.append(field);
             }
             if (index >= 0) {

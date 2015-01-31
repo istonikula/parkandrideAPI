@@ -4,6 +4,7 @@ import static fi.hsl.parkandride.core.domain.Sort.Dir.ASC;
 import static fi.hsl.parkandride.core.domain.Sort.Dir.DESC;
 import static fi.hsl.parkandride.core.domain.Spatial.fromWkt;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.Assert.fail;
 
 import java.util.List;
 import java.util.Set;
@@ -12,17 +13,13 @@ import javax.inject.Inject;
 
 import org.geolatte.geom.Geometry;
 import org.geolatte.geom.Point;
-import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.springframework.boot.test.SpringApplicationConfiguration;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import com.google.common.collect.ImmutableSet;
 
 import fi.hsl.parkandride.core.back.HubRepository;
 import fi.hsl.parkandride.core.domain.*;
-import fi.hsl.parkandride.dev.DevHelper;
+import fi.hsl.parkandride.core.service.ValidationException;
 
 public class HubDaoTest extends AbstractDaoTest {
 
@@ -104,7 +101,7 @@ public class HubDaoTest extends AbstractDaoTest {
         h2.id = hubRepository.insertHub(h2);
 
         // Default sort
-        PageableSpatialSearch search = new PageableSpatialSearch();
+        HubSearch search = new HubSearch();
         assertResultOrder(hubRepository.findHubs(search), h1.id, h2.id);
 
         // name.fi desc
@@ -131,6 +128,27 @@ public class HubDaoTest extends AbstractDaoTest {
         hubRepository.updateHub(0, createHub());
     }
 
+    @Test
+    public void unique_name() {
+        Hub hub = createHub();
+        hubRepository.insertHub(hub);
+        verifyUniqueName(hub, "fi");
+        verifyUniqueName(hub, "sv");
+        verifyUniqueName(hub, "en");
+    }
+
+    private void verifyUniqueName(Hub hub, String lang) {
+        hub.name = new MultilingualString("something else");
+        try {
+            hub.name.asMap().put(lang, NAME.asMap().get(lang));
+            hubRepository.insertHub(hub);
+            fail("should not allow duplicate names");
+        } catch (ValidationException e) {
+            assertThat(e.violations).hasSize(1);
+            assertThat(e.violations.get(0).path).isEqualTo("name." + lang);
+        }
+    }
+
     private Hub createHub() {
         Hub hub = new Hub();
         hub.name = NAME;
@@ -147,8 +165,8 @@ public class HubDaoTest extends AbstractDaoTest {
     }
 
     private SearchResults<Hub> findByGeometry(Geometry geometry) {
-        SpatialSearch search = new SpatialSearch();
-        search.intersecting = geometry;
+        HubSearch search = new HubSearch();
+        search.geometry = geometry;
         return hubRepository.findHubs(search);
     }
 

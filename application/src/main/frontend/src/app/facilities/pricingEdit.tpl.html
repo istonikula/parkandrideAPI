@@ -1,0 +1,67 @@
+<td class="clipboard-indicator"></td>
+<td class="pricing-select centeredCell">
+	<input type="checkbox" ng-model="rowSelected" class="checkbox"/>
+</td>
+<td>
+	<ui-select class="capacityInput" ng-model="pricing.capacityType" theme="bootstrap" reset-search-input="true">
+		<ui-select-match placeholder="{{'facilities.pricing.capacityTypePlaceholder' | translate }}">
+			{{$select.selected.label}}
+		</ui-select-match>
+		<ui-select-choices repeat="capacityType.id as capacityType in capacityTypes | filter: {label: $select.search}">
+			<div ng-bind-html="capacityType.label | highlight: $select.search"></div>
+		</ui-select-choices>
+	</ui-select>
+</td>
+<td>
+	<ui-select class="usageInput" ng-model="pricing.usage" theme="bootstrap" reset-search-input="true">
+		<ui-select-match placeholder="{{'facilities.pricing.usagePlaceholder' | translate }}">
+			{{$select.selected.label}}
+		</ui-select-match>
+		<ui-select-choices repeat="usage.id as usage in usages | filter: {label: $select.search}">
+			<div ng-bind-html="usage.label | highlight: $select.search"></div>
+		</ui-select-choices>
+	</ui-select>
+</td>
+<td>
+	<input name="pricingMaxCapacity{{pricing._id}}" type="number" class="form-control capacityInput text-right" ng-required="true"
+		   ng-model="pricing.maxCapacity" min="1" show-errors>
+</td>
+
+<td>
+	<ui-select ng-model="pricing.dayType" theme="bootstrap" reset-search-input="true">
+		<ui-select-match placeholder="{{'facilities.pricing.dayTypePlaceholder' | translate }}">
+			{{$select.selected.label}}
+		</ui-select-match>
+		<ui-select-choices repeat="dayType.id as dayType in dayTypes | filter: {label: $select.search}">
+			<div ng-bind-html="dayType.label | highlight: $select.search"></div>
+		</ui-select-choices>
+	</ui-select>
+</td>
+<td class="centeredCell">
+	<input type="checkbox" class="checkbox" ng-model="h24" />
+</td>
+<td>
+	<input name="pricingFrom{{pricing._id}}" type="text" class="form-control capacityInput" maxlength="5" ng-required="true"
+		   ng-model="pricing.time.from" ng-pattern="/^(?:(?:0?\d|1\d|2[0-3])(?::[0-5]\d)?|24(?::00)?)$/" show-errors>
+</td>
+<td>
+	<input name="pricingUntil{{pricing._id}}" type="text" class="form-control capacityInput" maxlength="5" ng-required="true"
+		   ng-model="pricing.time.until" ng-pattern="/^(?:(?:0?\d|1\d|2[0-3])(?::[0-5]\d)?|24(?::00)?)$/" show-errors>
+</td>
+
+<td class="centeredCell">
+	<input type="checkbox" class="checkbox" ng-model="free" />
+</td>
+<td>
+	<textarea name="pricingPriceFi{{pricing._id}}" rows="1" maxlenght="255" type="text" class="form-control capacityInput" ng-model="pricing.price.fi"
+			  show-errors ></textarea>
+</td>
+<td>
+	<textarea name="pricingPriceSv{{pricing._id}}" rows="1" maxlenght="255" type="text" class="form-control capacityInput" ng-model="pricing.price.sv"
+			  show-errors ></textarea>
+</td>
+<td>
+	<textarea name="pricingPriceEn{{pricing._id}}" rows="1" maxlenght="255" type="text" class="form-control capacityInput" ng-model="pricing.price.en"
+			  show-errors ></textarea>
+</td>
+
